@@ -7,17 +7,16 @@ class AuthRepository {
     required String email,
     required String password,
     required String name,
-    String role = 'user', // or 'shelter'
+    String role = 'user', // MUST BE: 'user' or 'shelter'
   }) async {
-    // 1) Create auth user
     final res = await _client.auth.signUp(email: email, password: password);
     final user = res.user;
+
     if (user == null) {
       throw Exception('Sign up failed');
     }
 
-    // 2) Insert profile (RLS requires id == auth.uid())
-    await _client.from('profiles').insert({
+    await _client.from('user').insert({
       'id': user.id,
       'email': email,
       'name': name,
@@ -37,7 +36,7 @@ class AuthRepository {
   Future<Map<String, dynamic>?> getMyProfile() async {
     final uid = _client.auth.currentUser?.id;
     if (uid == null) return null;
-    return await _client.from('profiles').select().eq('id', uid).maybeSingle();
+    return await _client.from('user').select().eq('id', uid).maybeSingle();
   }
 
   Future<void> updateMyProfile({String? name, String? role}) async {
@@ -49,6 +48,6 @@ class AuthRepository {
     if (role != null) payload['role'] = role;
 
     if (payload.isEmpty) return;
-    await _client.from('profiles').update(payload).eq('id', uid);
+    await _client.from('user').update(payload).eq('id', uid);
   }
 }
