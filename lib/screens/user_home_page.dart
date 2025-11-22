@@ -20,17 +20,27 @@ class UserHomePage extends StatefulWidget {
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends State<UserHomePage> {
+class _UserHomePageState extends State<UserHomePage>   {
   final List<Pet> _allPets = [];
   bool _isLoading = true;
   String? _loadError;
 
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   PetFilter _activeFilter = PetFilter.all;
+
 
   @override
   void initState() {
     super.initState();
     _loadPets();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose(); // ← CLEAN IT HERE
+    super.dispose();
   }
 
   Future<void> _loadPets() async {
@@ -42,7 +52,8 @@ class _UserHomePageState extends State<UserHomePage> {
     try {
       final data = await _supabase
           .from('animal')
-          .select('animal_id, name, age, breed, species, description, health_status, shelter_id, link_picture');
+          .select('animal_id, name, age, breed, species, description, health_status, shelter_id, link_picture')
+          .order('animal_id', ascending: false); // NEWEST FIRST
 
       // data is List<dynamic>
       final list = (data as List)
@@ -65,34 +76,54 @@ class _UserHomePageState extends State<UserHomePage> {
 
   /// List of pets after applying current filter.
   List<Pet> get _filteredPets {
+  // 1) Apply filter chip logic
+    List<Pet> base;
     switch (_activeFilter) {
       case PetFilter.vaccinated:
-        return _allPets
+        base = _allPets
             .where((p) =>
-                (p.healthStatus ?? '').toLowerCase().contains('vaccinated'))
+                (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
             .toList();
+       break;
 
       case PetFilter.young:
-        // Puppies/Kittens: age <= 1 year
-        return _allPets
+        base = _allPets
             .where((p) => p.age != null && p.age! <= 12)
             .toList();
+        break;
 
       case PetFilter.cats:
-        return _allPets
+        base = _allPets
             .where((p) => (p.species ?? '').toLowerCase() == 'cat')
             .toList();
+        break;
 
       case PetFilter.dogs:
-        return _allPets
+        base = _allPets
             .where((p) => (p.species ?? '').toLowerCase() == 'dog')
             .toList();
+        break;
 
       case PetFilter.all:
       default:
-        return _allPets;
+        base = _allPets;
+        break;
     }
+
+   // 2) Apply search if not empty
+    if (_searchQuery.isEmpty) return base;
+
+    bool matches(String? s) =>
+        s != null && s.toLowerCase().contains(_searchQuery);
+
+    return base.where((p) {
+      return matches(p.name) ||
+          matches(p.breed) ||
+          matches(p.species) ||
+          matches(p.description);
+    }).toList();
   }
+
 
   int _countForFilter(PetFilter filter) {
     switch (filter) {
@@ -101,7 +132,7 @@ class _UserHomePageState extends State<UserHomePage> {
       case PetFilter.vaccinated:
         return _allPets
             .where((p) =>
-                (p.healthStatus ?? '').toLowerCase().contains('vaccinated'))
+                (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
             .length;
       case PetFilter.young:
         return _allPets
@@ -151,17 +182,19 @@ class _UserHomePageState extends State<UserHomePage> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white, // white background
+      color: const Color.fromARGB(255, 246, 245, 245),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top header: app name left, big logo right
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start, // <-- Important
               children: [
-                const Expanded(
-                  child: Text(
+                // LEFT SIDE — Title with extra padding
+                Padding(
+                  padding: const EdgeInsets.only(top: 60), //  moves text downward
+                  child: const Text(
                     'Listing',
                     style: TextStyle(
                       fontSize: 30,
@@ -170,48 +203,81 @@ class _UserHomePageState extends State<UserHomePage> {
                     ),
                   ),
                 ),
+
+                const Spacer(),
+
                 // Big logo on the top-right
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    color: const Color(0xFFF4F2F9),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
-                        blurRadius: 10,
-                        offset: const Offset(0, 6),
+                SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      // Background circle
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFCDFFB6),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+
+                      // Logo overflowing outside the circle
+                      Positioned(
+                        top: 5,  // moves the logo upward
+                        child: Image.asset(
+                          'assets/images/catlogo.png',
+                          width: 120,   // bigger than parent — allows overflow
+                          height: 120,
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ],
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8),
-                    child: Image.asset('assets/images/catlogo.png'),
-                  ),
-                ),
+                )
+
               ],
             ),
           ),
 
           // Search bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
             child: TextField(
+              controller: _searchController,
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, color: Color(0xFF9586A8)),
-                hintText: 'Search for cats, dogs, shelters...',
+                prefixIcon: const Icon(Icons.search, color: Color(0xFFB7AFC3)),
+                hintText: 'Search',
                 hintStyle: const TextStyle(color: Color(0xFFB7AFC3)),
                 filled: true,
-                fillColor: const Color(0xFFF5F5F8),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                border: OutlineInputBorder(
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+
+                // 🔹 Add stroke border here
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(27),
+                  borderSide: const BorderSide(
+                    color: Color(0xFFE4E2EE), // soft stroke color
+                    width: 1.4,
+                  ),
+                ),
+
+                focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
+                  borderSide: const BorderSide(
+                    color: Color(0xFF5B30B5), // purple highlight when focused
+                    width: 1.6,
+                  ),
                 ),
               ),
-              // TODO: you can later wire this to local search if you want
+
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase().trim();
+                });
+              },
             ),
           ),
 
@@ -385,15 +451,6 @@ class _FilterChip extends StatelessWidget {
           color: bg,
           borderRadius: BorderRadius.circular(999),
           border: border == null ? null : Border.fromBorderSide(border),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFF5B30B5).withOpacity(0.18),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ]
-              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -440,7 +497,7 @@ class _PetCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color.fromARGB(255, 247, 247, 247),
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -465,7 +522,7 @@ class _PetCard extends StatelessWidget {
                   child: Container(
                     width: 80,
                     height: 80,
-                    color: const Color(0xFFF4F2F9),
+                    color: const Color.fromARGB(255, 230, 230, 230),
                     child: (pet.linkPicture != null && pet.linkPicture!.isNotEmpty)
                       ? Image.network(
                         pet.linkPicture!,
@@ -493,7 +550,7 @@ class _PetCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF2D0C57),
+                          color: Color.fromARGB(255, 2, 2, 2),
                         ),
                       ),
                       const SizedBox(height: 4),
