@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/data/edge_functions_repository.dart';
 import 'package:strayconnected/screens/pet_profile_page.dart';
 
 
@@ -27,6 +28,10 @@ class _UserHomePageState extends State<UserHomePage>   {
   bool _isLoading = true;
   String? _loadError;
   String? _role;
+  final EdgeFunctionsRepository _edgeRepo = EdgeFunctionsRepository();
+  List<dynamic> _usersFromEdge = [];
+  bool _isLoadingUsers = false;
+  String? _usersError;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -219,6 +224,42 @@ class _UserHomePageState extends State<UserHomePage>   {
     Navigator.pushNamed(context, '/createAnimal');
   }
 
+  Future<void> _loadUsers() async {
+    if (_isLoadingUsers) return;
+    setState(() {
+      _isLoadingUsers = true;
+      _usersError = null;
+    });
+    try {
+      final users = await _edgeRepo.fetchUsers();
+      if (!mounted) return;
+      setState(() {
+        _usersFromEdge = users;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Edge users fetched: ${users.length}'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _usersError = e.toString();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to fetch users: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingUsers = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     const double navHeight = 86;
@@ -248,6 +289,29 @@ class _UserHomePageState extends State<UserHomePage>   {
                     ),
 
                     const Spacer(),
+
+                    // Trigger edge function
+                    Padding(
+                      padding: const EdgeInsets.only(top: 56, right: 8),
+                      child: SizedBox(
+                        width: 42,
+                        height: 42,
+                        child: IconButton(
+                          style: IconButton.styleFrom(
+                            backgroundColor: const Color(0xFFE5D4FF),
+                          ),
+                          tooltip: 'Fetch users (edge function)',
+                          onPressed: _isLoadingUsers ? null : _loadUsers,
+                          icon: _isLoadingUsers
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2.2),
+                                )
+                              : const Icon(Icons.groups, color: Color(0xFF5B30B5)),
+                        ),
+                      ),
+                    ),
 
                     // Big logo on the top-right
                     SizedBox(
@@ -338,6 +402,14 @@ class _UserHomePageState extends State<UserHomePage>   {
                       ),
                     ),
                     const Spacer(),
+                    if (_usersFromEdge.isNotEmpty)
+                      Text(
+                        '${_usersFromEdge.length} users',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF5B30B5),
+                        ),
+                      ),
                     if (!_isLoading && _allPets.isNotEmpty)
                       Text(
                         '${_filteredPets.length} found',
@@ -363,6 +435,14 @@ class _UserHomePageState extends State<UserHomePage>   {
                   },
                 ),
               ),
+              if (_usersError != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Text(
+                    'Edge function error: $_usersError',
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
 
               // Content: loading / error / list
               Expanded(
