@@ -7,7 +7,7 @@ class AuthRepository {
     required String email,
     required String password,
     required String name,
-    String role = 'user', // MUST BE: 'user' or 'shelter'
+    String role = 'adopter', // adopter | rescuer | shelter
   }) async {
     final res = await _client.auth.signUp(email: email, password: password);
     final user = res.user;

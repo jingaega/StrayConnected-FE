@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/screens/pet_profile_page.dart';
+
 
 /// Supabase client (same instance you initialized in main.dart)
 final SupabaseClient _supabase = Supabase.instance.client;
@@ -24,6 +26,7 @@ class _UserHomePageState extends State<UserHomePage>   {
   final List<Pet> _allPets = [];
   bool _isLoading = true;
   String? _loadError;
+  String? _role;
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -34,6 +37,7 @@ class _UserHomePageState extends State<UserHomePage>   {
   @override
   void initState() {
     super.initState();
+    _loadRole();
     _loadPets();
   }
 
@@ -41,6 +45,30 @@ class _UserHomePageState extends State<UserHomePage>   {
   void dispose() {
     _searchController.dispose(); // ← CLEAN IT HERE
     super.dispose();
+  }
+
+  bool get _canCreate =>
+      _role == 'rescuer' || _role == 'shelter'; // support legacy shelter role
+
+  Future<void> _loadRole() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() {
+        _role = 'user';
+      });
+      return;
+    }
+    try {
+      final data =
+          await _supabase.from('user').select('role').eq('id', uid).maybeSingle();
+      setState(() {
+        _role = data?['role'] as String? ?? 'user';
+      });
+    } catch (_) {
+      setState(() {
+        _role = 'user';
+      });
+    }
   }
 
   Future<void> _loadPets() async {
@@ -52,7 +80,7 @@ class _UserHomePageState extends State<UserHomePage>   {
     try {
       final data = await _supabase
           .from('animal')
-          .select('animal_id, name, age, breed, species, description, health_status, shelter_id, link_picture')
+          .select('animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture')
           .order('animal_id', ascending: false); // NEWEST FIRST
 
       // data is List<dynamic>
@@ -105,7 +133,6 @@ class _UserHomePageState extends State<UserHomePage>   {
         break;
 
       case PetFilter.all:
-      default:
         base = _allPets;
         break;
     }
@@ -179,206 +206,233 @@ class _UserHomePageState extends State<UserHomePage>   {
     ];
   }
 
+  void _handleCreate() {
+    if (!_canCreate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only rescuers or shelters can add listings.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    Navigator.pushNamed(context, '/createAnimal');
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: const Color.fromARGB(255, 246, 245, 245),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start, // <-- Important
-              children: [
-                // LEFT SIDE — Title with extra padding
-                Padding(
-                  padding: const EdgeInsets.only(top: 60), //  moves text downward
-                  child: const Text(
-                    'Listing',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF2D0C57),
+    const double navHeight = 86;
+    return Stack(
+      children: [
+        Container(
+          color: const Color.fromARGB(255, 246, 245, 245),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start, // <-- Important
+                  children: [
+                    // LEFT SIDE — Title with extra padding
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60), //  moves text downward
+                      child: const Text(
+                        'Listing',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF2D0C57),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
 
-                const Spacer(),
+                    const Spacer(),
 
-                // Big logo on the top-right
-                SizedBox(
-                  width: 120,
-                  height: 120,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    alignment: Alignment.center,
-                    children: [
-                      // Background circle
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFCDFFB6),
-                          shape: BoxShape.circle,
-                        ),
+                    // Big logo on the top-right
+                    SizedBox(
+                      width: 120,
+                      height: 120,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          // Background circle
+                          Container(
+                            width: 90,
+                            height: 90,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFCDFFB6),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+
+                          // Logo overflowing outside the circle
+                          Positioned(
+                            top: 5,  // moves the logo upward
+                            child: Image.asset(
+                              'assets/images/catlogo.png',
+                              width: 120,   // bigger than parent — allows overflow
+                              height: 120,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
                       ),
+                    )
 
-                      // Logo overflowing outside the circle
-                      Positioned(
-                        top: 5,  // moves the logo upward
-                        child: Image.asset(
-                          'assets/images/catlogo.png',
-                          width: 120,   // bigger than parent — allows overflow
-                          height: 120,
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-
-              ],
-            ),
-          ),
-
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, color: Color(0xFFB7AFC3)),
-                hintText: 'Search',
-                hintStyle: const TextStyle(color: Color(0xFFB7AFC3)),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-
-                // 🔹 Add stroke border here
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(27),
-                  borderSide: const BorderSide(
-                    color: Color(0xFFE4E2EE), // soft stroke color
-                    width: 1.4,
-                  ),
-                ),
-
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF5B30B5), // purple highlight when focused
-                    width: 1.6,
-                  ),
+                  ],
                 ),
               ),
 
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase().trim();
-                });
-              },
-            ),
-          ),
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.search, color: Color(0xFFB7AFC3)),
+                    hintText: 'Search',
+                    hintStyle: const TextStyle(color: Color(0xFFB7AFC3)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
 
-          // Title row
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-            child: Row(
-              children: [
-                const Text(
-                  'Available nearby',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF2D0C57),
-                  ),
-                ),
-                const Spacer(),
-                if (!_isLoading && _allPets.isNotEmpty)
-                  Text(
-                    '${_filteredPets.length} found',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF9586A8),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // 🔹 Filter row (static)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 0, 8),
-            child: _FilterRow(
-              options: _filterOptions,
-              active: _activeFilter,
-              onSelected: (filter) {
-                setState(() {
-                  _activeFilter = filter;
-                });
-              },
-            ),
-          ),
-
-          // Content: loading / error / list
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                if (_isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (_loadError != null) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        'Failed to load animals:\n$_loadError',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
+                    // 🔹 Add stroke border here
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(27),
+                      borderSide: const BorderSide(
+                        color: Color(0xFFE4E2EE), // soft stroke color
+                        width: 1.4,
                       ),
                     ),
-                  );
-                }
-                if (_allPets.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No animals found yet.',
-                      style: TextStyle(color: Color(0xFF9586A8)),
-                    ),
-                  );
-                }
 
-                final pets = _filteredPets;
-                if (pets.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'No animals match this filter.',
-                      style: TextStyle(color: Color(0xFF9586A8)),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF5B30B5), // purple highlight when focused
+                        width: 1.6,
+                      ),
                     ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: _loadPets,
-                  child: ListView.separated(
-                    physics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics(),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
-                    itemCount: pets.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final pet = pets[index];
-                      return _PetCard(pet: pet);
-                    },
                   ),
-                );
-              },
-            ),
+
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value.toLowerCase().trim();
+                    });
+                  },
+                ),
+              ),
+
+              // Title row
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Available nearby',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D0C57),
+                      ),
+                    ),
+                    const Spacer(),
+                    if (!_isLoading && _allPets.isNotEmpty)
+                      Text(
+                        '${_filteredPets.length} found',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF9586A8),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // 🔹 Filter row (static)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 0, 8),
+                child: _FilterRow(
+                  options: _filterOptions,
+                  active: _activeFilter,
+                  onSelected: (filter) {
+                    setState(() {
+                      _activeFilter = filter;
+                    });
+                  },
+                ),
+              ),
+
+              // Content: loading / error / list
+              Expanded(
+                child: Builder(
+                  builder: (context) {
+                    if (_isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (_loadError != null) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            'Failed to load animals:\n$_loadError',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      );
+                    }
+                    if (_allPets.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No animals found yet.',
+                          style: TextStyle(color: Color(0xFF9586A8)),
+                        ),
+                      );
+                    }
+
+                    final pets = _filteredPets;
+                    if (pets.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'No animals match this filter.',
+                          style: TextStyle(color: Color(0xFF9586A8)),
+                        ),
+                      );
+                    }
+
+                    return RefreshIndicator(
+                      onRefresh: _loadPets,
+                      child: ListView.separated(
+                        physics: const BouncingScrollPhysics(
+                          parent: AlwaysScrollableScrollPhysics(),
+                        ),
+                        padding: const EdgeInsets.fromLTRB(20, 4, 20, navHeight + 12),
+                        itemCount: pets.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final pet = pets[index];
+                          return _PetCard(pet: pet);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _BottomNav(
+            canCreate: _canCreate,
+            onCreate: _handleCreate,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -495,128 +549,133 @@ class _PetCard extends StatelessWidget {
             ? 'Health info not set'
             : pet.healthStatus!;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color.fromARGB(255, 247, 247, 247),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => PetProfilePage(pet: pet),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Top row: image + text
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Pet image (placeholder using logo for now)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    width: 80,
-                    height: 80,
-                    color: const Color.fromARGB(255, 230, 230, 230),
-                    child: (pet.linkPicture != null && pet.linkPicture!.isNotEmpty)
-                      ? Image.network(
-                        pet.linkPicture!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Image.asset(
-                          'assets/images/catlogo.png',
-                          fit: BoxFit.cover,
-                        ),
-                      )
-                    : Image.asset(
-                      'assets/images/catlogo.png',
-                      fit: BoxFit.cover,
-                      ),
+        );
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color.fromARGB(255, 247, 247, 247),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color.fromRGBO(0, 0, 0, 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top row: image + text
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Pet image
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      width: 80,
+                      height: 80,
+                      color: const Color.fromARGB(255, 230, 230, 230),
+                      child: (pet.linkPicture != null &&
+                              pet.linkPicture!.isNotEmpty)
+                          ? Image.network(
+                              pet.linkPicture!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Image.asset(
+                                'assets/images/catlogo.png',
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Image.asset(
+                              'assets/images/catlogo.png',
+                              fit: BoxFit.cover,
+                            ),
                     ),
                   ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
 
-                // Text info
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        pet.name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color.fromARGB(255, 2, 2, 2),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (subtitle.isNotEmpty)
+                  // Text info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          subtitle,
+                          pet.name,
                           style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF9586A8),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color.fromARGB(255, 2, 2, 2),
                           ),
                         ),
-                      const SizedBox(height: 6),
-                      Text(
-                        pet.description ?? 'No description yet.',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF6E6E6E),
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(Icons.cake_outlined,
-                              size: 16, color: Color(0xFF9586A8)),
-                          const SizedBox(width: 4),
+                        const SizedBox(height: 4),
+                        if (subtitle.isNotEmpty)
                           Text(
-                            ageText,
+                            subtitle,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               color: Color(0xFF9586A8),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          const Icon(Icons.favorite_outline,
-                              size: 16, color: Color(0xFF9586A8)),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              healthText,
+                        const SizedBox(height: 6),
+                        Text(
+                          pet.description ?? 'No description yet.',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6E6E6E),
+                            height: 1.3,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            const Icon(Icons.cake_outlined,
+                                size: 16, color: Color(0xFF9586A8)),
+                            const SizedBox(width: 4),
+                            Text(
+                              ageText,
                               style: const TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF9586A8),
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(width: 12),
+                            const Icon(Icons.favorite_outline,
+                                size: 16, color: Color(0xFF9586A8)),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                healthText,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF9586A8),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
 
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
 
-            // Bottom row: plus button aligned to the right
-            Align(
-              alignment: Alignment.centerRight,
-              child: GestureDetector(
-                onTap: () {
-                  // TODO: adopt / open detail later
-                },
+              // Bottom row: plus button aligned to the right
+              Align(
+                alignment: Alignment.centerRight,
                 child: Container(
                   width: 32,
                   height: 32,
@@ -633,9 +692,123 @@ class _PetCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+//
+// ========== BOTTOM NAV ==========
+//
+
+class _BottomNav extends StatelessWidget {
+  const _BottomNav({
+    required this.canCreate,
+    required this.onCreate,
+  });
+
+  final bool canCreate;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    const Color barBg = Colors.white;
+    const Color iconColor = Color(0xFF9586A8);
+    const Color activeColor = Color(0xFF2D0C57);
+    const Color accent = Color(0xFF0ACF83);
+
+    return Container(
+      height: 86,
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+      decoration: const BoxDecoration(
+        color: barBg,
+        boxShadow: [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.08),
+            blurRadius: 18,
+            offset: Offset(0, -6),
+          ),
+        ],
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(18),
+          topRight: Radius.circular(18),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _NavItem(
+            icon: Icons.home_filled,
+            label: 'Home',
+            color: activeColor,
+            onTap: () {},
+          ),
+          GestureDetector(
+            onTap: canCreate ? onCreate : null,
+            child: Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: canCreate ? accent : const Color(0xFFE0E0E0),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color.fromRGBO(0, 0, 0, 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 30),
+            ),
+          ),
+          _NavItem(
+            icon: Icons.person_outline,
+            label: 'Profile',
+            color: iconColor,
+            onTap: () {},
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -654,6 +827,7 @@ class Pet {
   final String? description;
   final String? healthStatus;
   final String? shelterId;
+  final String? rescuerId;
   final String? linkPicture;
 
   Pet({
@@ -665,6 +839,7 @@ class Pet {
     this.description,
     this.healthStatus,
     this.shelterId,
+    this.rescuerId,
     this.linkPicture,
   });
 
@@ -679,6 +854,7 @@ class Pet {
       healthStatus: map['health_status'] as String?,
       linkPicture: map['link_picture'] as String? ?? '',
       shelterId: map['shelter_id']?.toString(),
+      rescuerId: map['rescuer_id']?.toString(),
     );
   }
 }

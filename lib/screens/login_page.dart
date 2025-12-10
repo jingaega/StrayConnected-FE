@@ -45,16 +45,8 @@
             ),
           );
 
-          // Fetch profile to check role
-          final profile = await _auth.getMyProfile();
-          final role = profile?['role'] ?? 'user';
-
           if (!mounted) return;
-          if (role == 'shelter') {
-            Navigator.pushReplacementNamed(context, '/shelterHome');
-          } else {
-            Navigator.pushReplacementNamed(context, '/home');
-          }
+          Navigator.pushReplacementNamed(context, '/home');
         }
       } catch (e) {
         setState(() => _errorMessage = 'Incorrect Password/Username');
@@ -74,7 +66,7 @@
               borderRadius: BorderRadius.circular(60),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.25),
+                  color: const Color.fromRGBO(0, 0, 0, 0.25),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -192,22 +184,6 @@
                         ),
                       ),
                       const SizedBox(height: 8),
-
-                      Center(
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pushReplacementNamed(context, '/home');
-                          },
-                          child: const Text(
-                            'Go to home',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,

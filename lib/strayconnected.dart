@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:strayconnected/screens/login_page.dart';
 import 'package:strayconnected/screens/register_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
-import 'package:strayconnected/screens/shelter_home_page.dart';
+import 'package:strayconnected/screens/create_animal_page.dart';
 
 class StrayConnectedApp extends StatelessWidget {
   const StrayConnectedApp({super.key});
@@ -21,7 +21,8 @@ class StrayConnectedApp extends StatelessWidget {
         '/login': (_) => const BackgroundWrapper(child: LoginPage()),
         '/register': (_) => const BackgroundWrapper(child: RegisterPage()),
         '/home': (_) => const BackgroundWrapper(child: UserHomePage()),
-        '/shelterHome': (_) => const BackgroundWrapper(child: ShelterHomePage()),
+        '/createAnimal': (_) =>
+            const BackgroundWrapper(child: CreateAnimalPage()),
       },
       onUnknownRoute: (settings) => MaterialPageRoute(
         builder: (_) => const BackgroundWrapper(child: LoginPage()),
@@ -41,7 +42,7 @@ class BackgroundWrapper extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           Image.asset('assets/images/background.png', fit: BoxFit.cover),
-          Container(color: Colors.black.withOpacity(0.15)),
+          Container(color: const Color.fromRGBO(0, 0, 0, 0.15)),
           SafeArea(child: child),
         ],
       ),

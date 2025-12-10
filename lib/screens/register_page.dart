@@ -28,7 +28,7 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _agree = false;
-  String _selectedRole = 'user'; // user or shelter
+  String _selectedRole = 'adopter'; // adopter, rescuer, shelter
 
   @override
   void dispose() {
@@ -80,6 +80,7 @@ class _RegisterPageState extends State<RegisterPage> {
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Registration failed: $e'),
@@ -108,10 +109,10 @@ class _RegisterPageState extends State<RegisterPage> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(55),
                 boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.25),
+                  const BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.25),
                     blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    offset: Offset(0, 4),
                   ),
                 ],
               ),
@@ -278,12 +279,16 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         items: const [
                           DropdownMenuItem(
-                              value: 'user', child: Text('User')),
+                              value: 'adopter', child: Text('Adopter')),
                           DropdownMenuItem(
-                              value: 'shelter', child: Text('Shelter')),
+                              value: 'rescuer',
+                              child: Text('Rescuer (can post animals)')),
+                          DropdownMenuItem(
+                              value: 'shelter',
+                              child: Text('Shelter (organization)')),
                         ],
                         onChanged: (val) {
-                          setState(() => _selectedRole = val ?? 'user');
+                          setState(() => _selectedRole = val ?? 'adopter');
                         },
                       ),
 
