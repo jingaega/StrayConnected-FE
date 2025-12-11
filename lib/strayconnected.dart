@@ -3,6 +3,10 @@ import 'package:strayconnected/screens/login_page.dart';
 import 'package:strayconnected/screens/register_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/screens/create_animal_page.dart';
+import 'package:strayconnected/screens/chat_list_page.dart';
+import 'package:strayconnected/screens/chat_thread_page.dart';
+import 'package:strayconnected/models/chat_preview_item.dart';
+import 'package:strayconnected/screens/manage_shelter_page.dart';
 
 class StrayConnectedApp extends StatelessWidget {
   const StrayConnectedApp({super.key});
@@ -21,12 +25,30 @@ class StrayConnectedApp extends StatelessWidget {
         '/login': (_) => const BackgroundWrapper(child: LoginPage()),
         '/register': (_) => const BackgroundWrapper(child: RegisterPage()),
         '/home': (_) => const BackgroundWrapper(child: UserHomePage()),
-        '/createAnimal': (_) =>
-            const BackgroundWrapper(child: CreateAnimalPage()),
+        '/createAnimal':
+            (_) => const BackgroundWrapper(child: CreateAnimalPage()),
+        '/chats': (_) => const BackgroundWrapper(child: ChatListPage()),
+        '/chatThread': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          final item =
+              args is ChatPreviewItem
+                  ? args
+                  : const ChatPreviewItem(
+                    name: 'Unknown',
+                    message: '',
+                    time: '',
+                    unreadCount: 0,
+                    avatarUrl: 'https://placehold.co/42x42',
+                  );
+          return ChatThreadPage(item: item);
+        },
+        '/manageShelter':
+            (_) => const BackgroundWrapper(child: ManageShelterPage()),
       },
-      onUnknownRoute: (settings) => MaterialPageRoute(
-        builder: (_) => const BackgroundWrapper(child: LoginPage()),
-      ),
+      onUnknownRoute:
+          (settings) => MaterialPageRoute(
+            builder: (_) => const BackgroundWrapper(child: LoginPage()),
+          ),
     );
   }
 }

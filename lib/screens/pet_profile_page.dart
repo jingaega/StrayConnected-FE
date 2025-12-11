@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
+import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
 const Color _cardColor = Colors.white;
@@ -52,9 +53,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
       if (!mounted) return;
 
       if (data != null) {
-        final updated = Pet.fromMap(
-          Map<String, dynamic>.from(data),
-        );
+        final updated = Pet.fromMap(Map<String, dynamic>.from(data));
         setState(() {
           _pet = updated;
         });
@@ -77,6 +76,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
   @override
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
+    const double navHeight = 86;
     final String ageLabel =
         _pet.age != null ? '${_pet.age} m/o' : 'Age unknown';
     final String traits = [
@@ -99,7 +99,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: 140 + paddingBottom),
+            padding: EdgeInsets.only(bottom: navHeight + 140 + paddingBottom),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -127,7 +127,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           Positioned(
             left: 16,
             right: 16,
-            bottom: 16 + paddingBottom,
+            bottom: navHeight + 16 + paddingBottom,
             child: Row(
               children: [
                 SizedBox(
@@ -144,10 +144,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
                     onPressed: () {
                       // TODO: contact the lister (rescuer / shelter)
                     },
-                    child: const Icon(
-                      Icons.help_outline,
-                      color: _primary,
-                    ),
+                    child: const Icon(Icons.help_outline, color: _primary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -180,6 +177,13 @@ class _PetProfilePageState extends State<PetProfilePage> {
             ),
           ),
         ],
+      ),
+      bottomNavigationBar: RoleAwareBottomNav(
+        onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
+        onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+        onChat: () => Navigator.pushNamed(context, '/chats'),
+        onProfile: () {},
+        activeTab: BottomNavTab.home,
       ),
     );
   }
@@ -429,9 +433,8 @@ class _Dot extends StatelessWidget {
       height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isActive
-            ? Colors.white
-            : const Color.fromRGBO(255, 255, 255, 0.5),
+        color:
+            isActive ? Colors.white : const Color.fromRGBO(255, 255, 255, 0.5),
       ),
     );
   }

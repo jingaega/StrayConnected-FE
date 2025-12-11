@@ -2,19 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/data/edge_functions_repository.dart';
 import 'package:strayconnected/screens/pet_profile_page.dart';
-
+import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 /// Supabase client (same instance you initialized in main.dart)
 final SupabaseClient _supabase = Supabase.instance.client;
 
 /// Which filter is currently active.
-enum PetFilter {
-  all,
-  vaccinated,
-  young,
-  cats,
-  dogs,
-}
+enum PetFilter { all, vaccinated, young, cats, dogs }
 
 class UserHomePage extends StatefulWidget {
   const UserHomePage({super.key});
@@ -23,7 +17,7 @@ class UserHomePage extends StatefulWidget {
   State<UserHomePage> createState() => _UserHomePageState();
 }
 
-class _UserHomePageState extends State<UserHomePage>   {
+class _UserHomePageState extends State<UserHomePage> {
   final List<Pet> _allPets = [];
   bool _isLoading = true;
   String? _loadError;
@@ -37,7 +31,6 @@ class _UserHomePageState extends State<UserHomePage>   {
   String _searchQuery = '';
 
   PetFilter _activeFilter = PetFilter.all;
-
 
   @override
   void initState() {
@@ -65,7 +58,11 @@ class _UserHomePageState extends State<UserHomePage>   {
     }
     try {
       final data =
-          await _supabase.from('user').select('role').eq('id', uid).maybeSingle();
+          await _supabase
+              .from('user')
+              .select('role')
+              .eq('id', uid)
+              .maybeSingle();
       setState(() {
         _role = data?['role'] as String? ?? 'user';
       });
@@ -85,13 +82,16 @@ class _UserHomePageState extends State<UserHomePage>   {
     try {
       final data = await _supabase
           .from('animal')
-          .select('animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture')
+          .select(
+            'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
+          )
           .order('animal_id', ascending: false); // NEWEST FIRST
 
       // data is List<dynamic>
-      final list = (data as List)
-          .map((row) => Pet.fromMap(Map<String, dynamic>.from(row as Map)))
-          .toList();
+      final list =
+          (data as List)
+              .map((row) => Pet.fromMap(Map<String, dynamic>.from(row as Map)))
+              .toList();
 
       setState(() {
         _allPets
@@ -109,32 +109,34 @@ class _UserHomePageState extends State<UserHomePage>   {
 
   /// List of pets after applying current filter.
   List<Pet> get _filteredPets {
-  // 1) Apply filter chip logic
+    // 1) Apply filter chip logic
     List<Pet> base;
     switch (_activeFilter) {
       case PetFilter.vaccinated:
-        base = _allPets
-            .where((p) =>
-                (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
-            .toList();
-       break;
+        base =
+            _allPets
+                .where(
+                  (p) => (p.healthStatus ?? '').toLowerCase() == 'vaccinated',
+                )
+                .toList();
+        break;
 
       case PetFilter.young:
-        base = _allPets
-            .where((p) => p.age != null && p.age! <= 12)
-            .toList();
+        base = _allPets.where((p) => p.age != null && p.age! <= 12).toList();
         break;
 
       case PetFilter.cats:
-        base = _allPets
-            .where((p) => (p.species ?? '').toLowerCase() == 'cat')
-            .toList();
+        base =
+            _allPets
+                .where((p) => (p.species ?? '').toLowerCase() == 'cat')
+                .toList();
         break;
 
       case PetFilter.dogs:
-        base = _allPets
-            .where((p) => (p.species ?? '').toLowerCase() == 'dog')
-            .toList();
+        base =
+            _allPets
+                .where((p) => (p.species ?? '').toLowerCase() == 'dog')
+                .toList();
         break;
 
       case PetFilter.all:
@@ -142,7 +144,7 @@ class _UserHomePageState extends State<UserHomePage>   {
         break;
     }
 
-   // 2) Apply search if not empty
+    // 2) Apply search if not empty
     if (_searchQuery.isEmpty) return base;
 
     bool matches(String? s) =>
@@ -156,20 +158,16 @@ class _UserHomePageState extends State<UserHomePage>   {
     }).toList();
   }
 
-
   int _countForFilter(PetFilter filter) {
     switch (filter) {
       case PetFilter.all:
         return _allPets.length;
       case PetFilter.vaccinated:
         return _allPets
-            .where((p) =>
-                (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
+            .where((p) => (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
             .length;
       case PetFilter.young:
-        return _allPets
-            .where((p) => p.age != null && p.age! <= 12)
-            .length;
+        return _allPets.where((p) => p.age != null && p.age! <= 12).length;
       case PetFilter.cats:
         return _allPets
             .where((p) => (p.species ?? '').toLowerCase() == 'cat')
@@ -237,9 +235,7 @@ class _UserHomePageState extends State<UserHomePage>   {
         _usersFromEdge = users;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Edge users fetched: ${users.length}'),
-        ),
+        SnackBar(content: Text('Edge users fetched: ${users.length}')),
       );
     } catch (e) {
       if (!mounted) return;
@@ -277,7 +273,9 @@ class _UserHomePageState extends State<UserHomePage>   {
                   children: [
                     // LEFT SIDE — Title with extra padding
                     Padding(
-                      padding: const EdgeInsets.only(top: 60), //  moves text downward
+                      padding: const EdgeInsets.only(
+                        top: 60,
+                      ), //  moves text downward
                       child: const Text(
                         'Listing',
                         style: TextStyle(
@@ -302,13 +300,19 @@ class _UserHomePageState extends State<UserHomePage>   {
                           ),
                           tooltip: 'Fetch users (edge function)',
                           onPressed: _isLoadingUsers ? null : _loadUsers,
-                          icon: _isLoadingUsers
-                              ? const SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2.2),
-                                )
-                              : const Icon(Icons.groups, color: Color(0xFF5B30B5)),
+                          icon:
+                              _isLoadingUsers
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                    ),
+                                  )
+                                  : const Icon(
+                                    Icons.groups,
+                                    color: Color(0xFF5B30B5),
+                                  ),
                         ),
                       ),
                     ),
@@ -333,18 +337,18 @@ class _UserHomePageState extends State<UserHomePage>   {
 
                           // Logo overflowing outside the circle
                           Positioned(
-                            top: 5,  // moves the logo upward
+                            top: 5, // moves the logo upward
                             child: Image.asset(
                               'assets/images/catlogo.png',
-                              width: 120,   // bigger than parent — allows overflow
+                              width:
+                                  120, // bigger than parent — allows overflow
                               height: 120,
                               fit: BoxFit.contain,
                             ),
                           ),
                         ],
                       ),
-                    )
-
+                    ),
                   ],
                 ),
               ),
@@ -355,12 +359,18 @@ class _UserHomePageState extends State<UserHomePage>   {
                 child: TextField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.search, color: Color(0xFFB7AFC3)),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      color: Color(0xFFB7AFC3),
+                    ),
                     hintText: 'Search',
                     hintStyle: const TextStyle(color: Color(0xFFB7AFC3)),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 0,
+                    ),
 
                     // 🔹 Add stroke border here
                     enabledBorder: OutlineInputBorder(
@@ -374,7 +384,9 @@ class _UserHomePageState extends State<UserHomePage>   {
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(20),
                       borderSide: const BorderSide(
-                        color: Color(0xFF5B30B5), // purple highlight when focused
+                        color: Color(
+                          0xFF5B30B5,
+                        ), // purple highlight when focused
                         width: 1.6,
                       ),
                     ),
@@ -488,7 +500,12 @@ class _UserHomePageState extends State<UserHomePage>   {
                         physics: const BouncingScrollPhysics(
                           parent: AlwaysScrollableScrollPhysics(),
                         ),
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, navHeight + 12),
+                        padding: const EdgeInsets.fromLTRB(
+                          20,
+                          4,
+                          20,
+                          navHeight + 12,
+                        ),
                         itemCount: pets.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
@@ -507,9 +524,13 @@ class _UserHomePageState extends State<UserHomePage>   {
           left: 0,
           right: 0,
           bottom: 0,
-          child: _BottomNav(
+          child: GlobalBottomNav(
             canCreate: _canCreate,
             onCreate: _handleCreate,
+            onHome: () {},
+            onChat: () => Navigator.pushNamed(context, '/chats'),
+            onProfile: () {},
+            activeTab: BottomNavTab.home,
           ),
         ),
       ],
@@ -573,9 +594,10 @@ class _FilterChip extends StatelessWidget {
     final BorderSide? border =
         isActive ? null : const BorderSide(color: Color(0xFFE4E2EE));
 
-    final String labelText = option.count != null
-        ? '${option.label} (${option.count})'
-        : option.label;
+    final String labelText =
+        option.count != null
+            ? '${option.label} (${option.count})'
+            : option.label;
 
     return GestureDetector(
       onTap: onTap,
@@ -631,11 +653,9 @@ class _PetCard extends StatelessWidget {
 
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => PetProfilePage(pet: pet),
-          ),
-        );
+        Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => PetProfilePage(pet: pet)));
       },
       child: Container(
         decoration: BoxDecoration(
@@ -665,20 +685,22 @@ class _PetCard extends StatelessWidget {
                       width: 80,
                       height: 80,
                       color: const Color.fromARGB(255, 230, 230, 230),
-                      child: (pet.linkPicture != null &&
-                              pet.linkPicture!.isNotEmpty)
-                          ? Image.network(
-                              pet.linkPicture!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => Image.asset(
+                      child:
+                          (pet.linkPicture != null &&
+                                  pet.linkPicture!.isNotEmpty)
+                              ? Image.network(
+                                pet.linkPicture!,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (_, __, ___) => Image.asset(
+                                      'assets/images/catlogo.png',
+                                      fit: BoxFit.cover,
+                                    ),
+                              )
+                              : Image.asset(
                                 'assets/images/catlogo.png',
                                 fit: BoxFit.cover,
                               ),
-                            )
-                          : Image.asset(
-                              'assets/images/catlogo.png',
-                              fit: BoxFit.cover,
-                            ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -719,8 +741,11 @@ class _PetCard extends StatelessWidget {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            const Icon(Icons.cake_outlined,
-                                size: 16, color: Color(0xFF9586A8)),
+                            const Icon(
+                              Icons.cake_outlined,
+                              size: 16,
+                              color: Color(0xFF9586A8),
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               ageText,
@@ -730,8 +755,11 @@ class _PetCard extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Icon(Icons.favorite_outline,
-                                size: 16, color: Color(0xFF9586A8)),
+                            const Icon(
+                              Icons.favorite_outline,
+                              size: 16,
+                              color: Color(0xFF9586A8),
+                            ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
@@ -764,131 +792,13 @@ class _PetCard extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Icon(
-                      Icons.add,
-                      size: 18,
-                      color: Colors.white,
-                    ),
+                    child: Icon(Icons.add, size: 18, color: Colors.white),
                   ),
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-//
-// ========== BOTTOM NAV ==========
-//
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({
-    required this.canCreate,
-    required this.onCreate,
-  });
-
-  final bool canCreate;
-  final VoidCallback onCreate;
-
-  @override
-  Widget build(BuildContext context) {
-    const Color barBg = Colors.white;
-    const Color iconColor = Color(0xFF9586A8);
-    const Color activeColor = Color(0xFF2D0C57);
-    const Color accent = Color(0xFF0ACF83);
-
-    return Container(
-      height: 86,
-      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-      decoration: const BoxDecoration(
-        color: barBg,
-        boxShadow: [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.08),
-            blurRadius: 18,
-            offset: Offset(0, -6),
-          ),
-        ],
-        borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(18),
-          topRight: Radius.circular(18),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _NavItem(
-            icon: Icons.home_filled,
-            label: 'Home',
-            color: activeColor,
-            onTap: () {},
-          ),
-          GestureDetector(
-            onTap: canCreate ? onCreate : null,
-            child: Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: canCreate ? accent : const Color(0xFFE0E0E0),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color.fromRGBO(0, 0, 0, 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
-              ),
-              child: const Icon(Icons.add, color: Colors.white, size: 30),
-            ),
-          ),
-          _NavItem(
-            icon: Icons.person_outline,
-            label: 'Profile',
-            color: iconColor,
-            onTap: () {},
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -944,9 +854,5 @@ class FilterOption {
   final String label;
   final int? count;
 
-  const FilterOption({
-    required this.type,
-    required this.label,
-    this.count,
-  });
+  const FilterOption({required this.type, required this.label, this.count});
 }

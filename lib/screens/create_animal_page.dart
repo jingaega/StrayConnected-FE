@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
 const Color _primary = Color(0xFF3F0C7A);
@@ -22,8 +23,16 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   final _descriptionCtrl = TextEditingController();
 
   final List<String> _speciesOptions = const ['Cat', 'Dog', 'Other'];
-  final List<String> _breedOptions = const ['Calico', 'Mixed', 'Husky', 'Unknown'];
-  final List<int> _ageOptions = List<int>.generate(20, (i) => i + 1); // 1..20 months
+  final List<String> _breedOptions = const [
+    'Calico',
+    'Mixed',
+    'Husky',
+    'Unknown',
+  ];
+  final List<int> _ageOptions = List<int>.generate(
+    20,
+    (i) => i + 1,
+  ); // 1..20 months
 
   String _selectedSpecies = 'Cat';
   String _selectedBreed = 'Calico';
@@ -82,8 +91,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
         'species': _selectedSpecies,
         'description': _descriptionCtrl.text.trim(),
         'health_status': _healthCtrl.text.trim(),
-        'link_picture': '',   // can be updated later with real image URL
-
+        'link_picture': '', // can be updated later with real image URL
       });
 
       if (!mounted) return;
@@ -122,7 +130,11 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     }
     try {
       final data =
-          await _supabase.from('user').select('role').eq('id', uid).maybeSingle();
+          await _supabase
+              .from('user')
+              .select('role')
+              .eq('id', uid)
+              .maybeSingle();
       setState(() {
         _role = data?['role'] as String? ?? 'adopter';
       });
@@ -134,13 +146,19 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   @override
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
+    const double navHeight = 86;
 
     return Container(
       color: _bg,
       child: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(20, 24, 20, 140 + paddingBottom),
+            padding: EdgeInsets.fromLTRB(
+              20,
+              24,
+              20,
+              navHeight + 140 + paddingBottom,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -233,7 +251,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
           Positioned(
             left: 20,
             right: 20,
-            bottom: 20 + paddingBottom,
+            bottom: navHeight + 20 + paddingBottom,
             child: SizedBox(
               height: 56,
               child: ElevatedButton(
@@ -245,24 +263,37 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                   ),
                 ),
                 onPressed: _isSubmitting ? null : _submit,
-                child: _isSubmitting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation(Colors.white),
+                child:
+                    _isSubmitting
+                        ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                        : const Text(
+                          'CONFIRM',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.01,
+                          ),
                         ),
-                      )
-                    : const Text(
-                        'CONFIRM',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.01,
-                        ),
-                      ),
               ),
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: RoleAwareBottomNav(
+              onCreateAllowed: _submit,
+              onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+              onChat: () => Navigator.pushNamed(context, '/chats'),
+              onProfile: () {},
+              activeTab: BottomNavTab.home,
             ),
           ),
         ],
@@ -394,8 +425,10 @@ class _Field extends StatelessWidget {
             validator: validator,
             maxLines: maxLines,
             decoration: const InputDecoration(
-              contentPadding:
-                  EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
               hintText: '',
               hintStyle: TextStyle(color: Color(0xFFB7AFC3)),
               border: InputBorder.none,
@@ -446,14 +479,13 @@ class _DropdownField<T> extends StatelessWidget {
             value: value,
             isExpanded: true,
             underline: const SizedBox.shrink(),
-            items: options
-                .map(
-                  (opt) => DropdownMenuItem<T>(
-                    value: opt,
-                    child: Text('$opt'),
-                  ),
-                )
-                .toList(),
+            items:
+                options
+                    .map(
+                      (opt) =>
+                          DropdownMenuItem<T>(value: opt, child: Text('$opt')),
+                    )
+                    .toList(),
             onChanged: onChanged,
           ),
         ),

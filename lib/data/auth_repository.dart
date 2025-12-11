@@ -52,12 +52,9 @@ class AuthRepository {
   }
 
   Future<dynamic> callGetUsersFunction() async {
-  try {
-    final response = await _client.functions.invoke('get-users');
-    return response.data; // already decoded JSON
-  } on FunctionException catch (e) {
-    throw Exception('Failed to fetch users: ${e.message}');
-  } catch (e) {
-    throw Exception('Unexpected error: $e');
+  final response = await _client.functions.invoke('get-users');
+  return response.data;
   }
+
 }
+

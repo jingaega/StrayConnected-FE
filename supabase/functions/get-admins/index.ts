@@ -19,7 +19,7 @@ serve(async (req) => {
 
   // query data, ubah nama tabel di sini
   const { data, error } = await supabase
-    .from("users")
+    .from("admin")
     .select("*");
 
   if (error) {
