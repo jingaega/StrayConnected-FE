@@ -181,8 +181,8 @@ class _PetProfilePageState extends State<PetProfilePage> {
       bottomNavigationBar: RoleAwareBottomNav(
         onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
         onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-        onChat: () => Navigator.pushNamed(context, '/chats'),
-        onProfile: () {},
+        onProfile: () =>
+            Navigator.pushReplacementNamed(context, '/profile'),
         activeTab: BottomNavTab.home,
       ),
     );

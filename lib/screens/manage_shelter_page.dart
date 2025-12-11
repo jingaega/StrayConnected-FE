@@ -267,8 +267,8 @@ class _ManageShelterPageState extends State<ManageShelterPage> {
       bottomNavigationBar: RoleAwareBottomNav(
         onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
         onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-        onChat: () => Navigator.pushNamed(context, '/chats'),
-        onProfile: () {},
+        onProfile: () =>
+            Navigator.pushReplacementNamed(context, '/profile'),
         activeTab: BottomNavTab.profile,
       ),
     );

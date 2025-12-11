@@ -58,9 +58,9 @@ class ChatListPage extends StatelessWidget {
             onCreateAllowed:
                 () => Navigator.pushNamed(context, '/createAnimal'),
             onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-            onChat: () {},
-            onProfile: () {},
-            activeTab: BottomNavTab.chat,
+            onProfile: () =>
+                Navigator.pushReplacementNamed(context, '/profile'),
+            activeTab: BottomNavTab.profile,
           ),
         ),
       ],

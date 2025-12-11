@@ -291,8 +291,8 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
             child: RoleAwareBottomNav(
               onCreateAllowed: _submit,
               onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-              onChat: () => Navigator.pushNamed(context, '/chats'),
-              onProfile: () {},
+              onProfile: () =>
+                  Navigator.pushReplacementNamed(context, '/profile'),
               activeTab: BottomNavTab.home,
             ),
           ),

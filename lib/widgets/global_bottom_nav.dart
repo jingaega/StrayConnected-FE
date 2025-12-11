@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum BottomNavTab { home, chat, profile }
+enum BottomNavTab { home, profile }
 
-/// Reusable bottom navigation bar for the app.
+/// Reusable bottom navigation bar for the app (Home | + | Profile).
 class GlobalBottomNav extends StatelessWidget {
   const GlobalBottomNav({
     super.key,
     required this.canCreate,
     required this.onCreate,
     required this.onHome,
-    required this.onChat,
     required this.onProfile,
     this.activeTab = BottomNavTab.home,
   });
@@ -18,7 +17,6 @@ class GlobalBottomNav extends StatelessWidget {
   final bool canCreate;
   final VoidCallback onCreate;
   final VoidCallback onHome;
-  final VoidCallback onChat;
   final VoidCallback onProfile;
   final BottomNavTab activeTab;
 
@@ -34,7 +32,7 @@ class GlobalBottomNav extends StatelessWidget {
 
     return Container(
       height: 86,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
       decoration: const BoxDecoration(
         color: barBg,
         boxShadow: [
@@ -57,12 +55,6 @@ class GlobalBottomNav extends StatelessWidget {
             label: 'Home',
             color: colorFor(BottomNavTab.home),
             onTap: onHome,
-          ),
-          _NavItem(
-            icon: Icons.chat_bubble_outline,
-            label: 'Chat',
-            color: colorFor(BottomNavTab.chat),
-            onTap: onChat,
           ),
           GestureDetector(
             onTap: canCreate ? onCreate : null,
@@ -103,14 +95,12 @@ class RoleAwareBottomNav extends StatefulWidget {
     required this.activeTab,
     required this.onCreateAllowed,
     required this.onHome,
-    required this.onChat,
     required this.onProfile,
   });
 
   final BottomNavTab activeTab;
   final VoidCallback onCreateAllowed;
   final VoidCallback onHome;
-  final VoidCallback onChat;
   final VoidCallback onProfile;
 
   @override
@@ -151,7 +141,6 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
       canCreate: _canCreate,
       onCreate: _canCreate ? widget.onCreateAllowed : () {},
       onHome: widget.onHome,
-      onChat: widget.onChat,
       onProfile: widget.onProfile,
       activeTab: widget.activeTab,
     );
