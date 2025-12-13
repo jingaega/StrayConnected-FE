@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
@@ -26,11 +28,15 @@ class _PetProfilePageState extends State<PetProfilePage> {
   late Pet _pet;
   bool _isLoading = false;
   String? _loadError;
+  bool _distanceLoading = false;
+  String? _distanceError;
+  double? _distanceKm;
 
   @override
   void initState() {
     super.initState();
     _pet = widget.pet;
+    _loadDistanceForPet(widget.pet);
     _refreshPet();
   }
 
@@ -45,7 +51,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           await _supabase
               .from('animal')
               .select(
-                'animal_id, name, age, breed, species, description, health_status, shelter_id, link_picture',
+                'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
               )
               .eq('animal_id', widget.pet.animalId)
               .maybeSingle();
@@ -57,6 +63,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
         setState(() {
           _pet = updated;
         });
+        await _loadDistanceForPet(updated);
       }
     } catch (e) {
       if (mounted) {
@@ -73,6 +80,105 @@ class _PetProfilePageState extends State<PetProfilePage> {
     }
   }
 
+  Future<void> _loadDistanceForPet(Pet pet) async {
+    final viewerId = _supabase.auth.currentUser?.id;
+    final posterId = pet.rescuerId ?? pet.shelterId;
+    if (viewerId == null || posterId == null) {
+      setState(() {
+        _distanceKm = null;
+        _distanceError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _distanceLoading = true;
+      _distanceError = null;
+    });
+
+    try {
+      final rows =
+          await _supabase
+              .from('user')
+              .select('id, lat, lng, latitude, longitude')
+              .inFilter('id', [viewerId, posterId]);
+
+      Map<String, dynamic>? findById(String id) {
+        if (rows is List) {
+          for (final row in rows) {
+            if (row is Map && row['id'] == id) {
+              return Map<String, dynamic>.from(row);
+            }
+          }
+        }
+        return null;
+      }
+
+      final viewer = findById(viewerId);
+      final poster = findById(posterId);
+      final viewerLatLng = _extractLatLng(viewer);
+      final posterLatLng = _extractLatLng(poster);
+
+      if (viewerLatLng == null || posterLatLng == null) {
+        setState(() {
+          _distanceKm = null;
+          _distanceError = 'Location unavailable';
+        });
+        return;
+      }
+
+      final km = _haversineKm(
+        viewerLatLng.$1,
+        viewerLatLng.$2,
+        posterLatLng.$1,
+        posterLatLng.$2,
+      );
+      setState(() {
+        _distanceKm = km;
+        _distanceError = null;
+      });
+    } catch (e) {
+      setState(() {
+        _distanceKm = null;
+        _distanceError = e.toString();
+      });
+    } finally {
+      setState(() => _distanceLoading = false);
+    }
+  }
+
+  (double, double)? _extractLatLng(Map<String, dynamic>? row) {
+    if (row == null) return null;
+
+    double? parse(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      if (value is String) return double.tryParse(value);
+      return null;
+    }
+
+    final lat = parse(row['lat'] ?? row['latitude']);
+    final lng = parse(row['lng'] ?? row['longitude']);
+    if (lat == null || lng == null) return null;
+    return (lat, lng);
+  }
+
+  double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const earthRadiusKm = 6371.0;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degToRad(lat1)) *
+            math.cos(_degToRad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadiusKm * c;
+  }
+
+  double _degToRad(double deg) => deg * math.pi / 180.0;
+
   @override
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
@@ -84,9 +190,17 @@ class _PetProfilePageState extends State<PetProfilePage> {
       if (_pet.species != null && _pet.species!.isNotEmpty)
         _pet.species!.trim(),
     ].join(' • ');
+    final String distanceText = () {
+      if (_distanceLoading) return 'Calculating distance...';
+      if (_distanceError != null) return 'Distance unavailable';
+      if (_distanceKm != null) {
+        return '${_distanceKm!.toStringAsFixed(1)} km away';
+      }
+      return 'Distance unavailable';
+    }();
     final String detailLine = [
       if (traits.isNotEmpty) traits,
-      '20km away',
+      distanceText,
     ].join(' - ');
 
     final String descriptionText =

@@ -19,7 +19,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameCtrl = TextEditingController();
-  final _healthCtrl = TextEditingController(text: 'Vaccinated and Healthy');
+  final _healthCtrl = TextEditingController(text: 'Vaccinated');
   final _descriptionCtrl = TextEditingController();
 
   final List<String> _speciesOptions = const ['Cat', 'Dog', 'Other'];
