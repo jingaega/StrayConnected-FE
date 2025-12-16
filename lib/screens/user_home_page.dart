@@ -444,6 +444,10 @@ class _UserHomePageState extends State<UserHomePage> {
             canCreate: _canCreate,
             onCreate: _handleCreate,
             onHome: () {},
+            onMessages: () =>
+                Navigator.pushReplacementNamed(context, '/chats'),
+            onMeetings: () =>
+                Navigator.pushReplacementNamed(context, '/meetings'),
             onProfile: () => Navigator.pushNamed(context, '/profile'),
             activeTab: BottomNavTab.home,
           ),

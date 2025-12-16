@@ -8,6 +8,8 @@ import 'package:strayconnected/screens/chat_thread_page.dart';
 import 'package:strayconnected/models/chat_preview_item.dart';
 import 'package:strayconnected/screens/manage_shelter_page.dart';
 import 'package:strayconnected/screens/profile_page.dart';
+import 'package:strayconnected/screens/meeting_requests_page.dart';
+import 'package:strayconnected/screens/my_animals_page.dart';
 
 class StrayConnectedApp extends StatelessWidget {
   const StrayConnectedApp({super.key});
@@ -30,6 +32,8 @@ class StrayConnectedApp extends StatelessWidget {
             (_) => const BackgroundWrapper(child: CreateAnimalPage()),
         '/chats': (_) => const BackgroundWrapper(child: ChatListPage()),
         '/profile': (_) => const BackgroundWrapper(child: ProfilePage()),
+        '/meetings': (_) => const BackgroundWrapper(child: MeetingRequestsPage()),
+        '/myAnimals': (_) => const BackgroundWrapper(child: MyAnimalsPage()),
         '/chatThread': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           final item =

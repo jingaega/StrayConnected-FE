@@ -25,9 +25,13 @@ class ChatThreadPage extends StatelessWidget {
       bottomNavigationBar: RoleAwareBottomNav(
         onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
         onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+        onMessages: () =>
+            Navigator.pushReplacementNamed(context, '/chats'),
+        onMeetings: () =>
+            Navigator.pushReplacementNamed(context, '/meetings'),
         onProfile: () =>
             Navigator.pushReplacementNamed(context, '/profile'),
-        activeTab: BottomNavTab.profile,
+        activeTab: BottomNavTab.messages,
       ),
     );
   }

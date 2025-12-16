@@ -137,6 +137,26 @@ class _ProfilePageState extends State<ProfilePage> {
                               onTap: () =>
                                   Navigator.pushNamed(context, '/chats'),
                             ),
+                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
+                            _SettingsTile(
+                              icon: Icons.event_available,
+                              iconColor: const Color(0xFF0BCE83),
+                              title: 'Meeting Requests',
+                              subtitle:
+                                  'Track your adoption meetings and statuses',
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/meetings'),
+                            ),
+                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
+                            _SettingsTile(
+                              icon: Icons.pets,
+                              iconColor: const Color(0xFFFFB04C),
+                              title: 'My Animals',
+                              subtitle:
+                                  'View animals you listed as rescuer/shelter',
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/myAnimals'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -199,6 +219,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   (_profile?['role'] == 'shelter'),
               onCreate: () => Navigator.pushNamed(context, '/createAnimal'),
               onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+              onMessages: () =>
+                  Navigator.pushReplacementNamed(context, '/chats'),
+              onMeetings: () =>
+                  Navigator.pushReplacementNamed(context, '/meetings'),
               onProfile: () {},
               activeTab: BottomNavTab.profile,
             ),

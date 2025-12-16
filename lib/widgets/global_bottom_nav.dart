@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-enum BottomNavTab { home, profile }
+enum BottomNavTab { home, messages, meetings, profile }
 
 /// Reusable bottom navigation bar for the app (Home | + | Profile).
 class GlobalBottomNav extends StatelessWidget {
@@ -10,6 +10,8 @@ class GlobalBottomNav extends StatelessWidget {
     required this.canCreate,
     required this.onCreate,
     required this.onHome,
+    required this.onMessages,
+    required this.onMeetings,
     required this.onProfile,
     this.activeTab = BottomNavTab.home,
   });
@@ -17,6 +19,8 @@ class GlobalBottomNav extends StatelessWidget {
   final bool canCreate;
   final VoidCallback onCreate;
   final VoidCallback onHome;
+  final VoidCallback onMessages;
+  final VoidCallback onMeetings;
   final VoidCallback onProfile;
   final BottomNavTab activeTab;
 
@@ -32,7 +36,7 @@ class GlobalBottomNav extends StatelessWidget {
 
     return Container(
       height: 86,
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
       decoration: const BoxDecoration(
         color: barBg,
         boxShadow: [
@@ -48,19 +52,23 @@ class GlobalBottomNav extends StatelessWidget {
         ),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _NavItem(
             icon: Icons.home_filled,
-            label: 'Home',
             color: colorFor(BottomNavTab.home),
             onTap: onHome,
+          ),
+          _NavItem(
+            icon: Icons.chat_bubble_outline,
+            color: colorFor(BottomNavTab.messages),
+            onTap: onMessages,
           ),
           GestureDetector(
             onTap: canCreate ? onCreate : null,
             child: Container(
-              width: 64,
-              height: 64,
+              width: 68,
+              height: 68,
               decoration: BoxDecoration(
                 color: canCreate ? accent : const Color(0xFFE0E0E0),
                 shape: BoxShape.circle,
@@ -76,8 +84,12 @@ class GlobalBottomNav extends StatelessWidget {
             ),
           ),
           _NavItem(
+            icon: Icons.event_available_outlined,
+            color: colorFor(BottomNavTab.meetings),
+            onTap: onMeetings,
+          ),
+          _NavItem(
             icon: Icons.person_outline,
-            label: 'Profile',
             color: colorFor(BottomNavTab.profile),
             onTap: onProfile,
           ),
@@ -95,12 +107,16 @@ class RoleAwareBottomNav extends StatefulWidget {
     required this.activeTab,
     required this.onCreateAllowed,
     required this.onHome,
+    required this.onMessages,
+    required this.onMeetings,
     required this.onProfile,
   });
 
   final BottomNavTab activeTab;
   final VoidCallback onCreateAllowed;
   final VoidCallback onHome;
+  final VoidCallback onMessages;
+  final VoidCallback onMeetings;
   final VoidCallback onProfile;
 
   @override
@@ -141,6 +157,8 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
       canCreate: _canCreate,
       onCreate: _canCreate ? widget.onCreateAllowed : () {},
       onHome: widget.onHome,
+      onMessages: widget.onMessages,
+      onMeetings: widget.onMeetings,
       onProfile: widget.onProfile,
       activeTab: widget.activeTab,
     );
@@ -150,13 +168,11 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
 class _NavItem extends StatelessWidget {
   const _NavItem({
     required this.icon,
-    required this.label,
     required this.color,
     required this.onTap,
   });
 
   final IconData icon;
-  final String label;
   final Color color;
   final VoidCallback onTap;
 
@@ -168,16 +184,7 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Icon(icon, color: color, size: 28),
         ],
       ),
     );

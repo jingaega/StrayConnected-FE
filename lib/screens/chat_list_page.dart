@@ -55,12 +55,14 @@ class ChatListPage extends StatelessWidget {
           right: 0,
           bottom: 0,
           child: RoleAwareBottomNav(
-            onCreateAllowed:
-                () => Navigator.pushNamed(context, '/createAnimal'),
+            onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
             onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+            onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
+            onMeetings: () =>
+                Navigator.pushReplacementNamed(context, '/meetings'),
             onProfile: () =>
                 Navigator.pushReplacementNamed(context, '/profile'),
-            activeTab: BottomNavTab.profile,
+            activeTab: BottomNavTab.messages,
           ),
         ),
       ],
