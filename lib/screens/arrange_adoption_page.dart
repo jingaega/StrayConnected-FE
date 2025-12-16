@@ -11,11 +11,15 @@ const Color _accent = Color(0xFF0ACF83);
 class ArrangeAdoptionPage extends StatefulWidget {
   final Pet pet;
   final bool isAdopter;
+  final String? shelterId;
+  final String? rescuerId;
 
   const ArrangeAdoptionPage({
     super.key,
     required this.pet,
     required this.isAdopter,
+    this.shelterId,
+    this.rescuerId,
   });
 
   @override
@@ -87,8 +91,10 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
       'date': _formatDateForDb(_selectedDate!),
       'time': _formatTimeForDb(_selectedTime!),
       'status': 'Pending',
-      if (widget.pet.rescuerId != null) 'rescuer_id': widget.pet.rescuerId,
-      if (widget.pet.shelterId != null) 'shelter_id': widget.pet.shelterId,
+      if (widget.rescuerId != null && widget.rescuerId!.isNotEmpty)
+        'rescuer_id': widget.rescuerId,
+      if (widget.shelterId != null && widget.shelterId!.isNotEmpty)
+        'shelter_id': widget.shelterId,
     };
 
     setState(() => _isSubmitting = true);

@@ -39,10 +39,11 @@ class StrayConnectedApp extends StatelessWidget {
           final item =
               args is ChatPreviewItem
                   ? args
-                  : const ChatPreviewItem(
-                    name: 'Unknown',
-                    message: '',
-                    time: '',
+                  : ChatPreviewItem(
+                    userId: 'unknown',
+                    name: '',
+                    lastMessage: '',
+                    lastAt: DateTime.now(),
                     unreadCount: 0,
                     avatarUrl: 'https://placehold.co/42x42',
                   );

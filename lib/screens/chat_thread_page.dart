@@ -1,53 +1,333 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/models/chat_preview_item.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
-class ChatThreadPage extends StatelessWidget {
+class ChatThreadPage extends StatefulWidget {
   const ChatThreadPage({super.key, required this.item});
 
   final ChatPreviewItem item;
 
   @override
+  State<ChatThreadPage> createState() => _ChatThreadPageState();
+}
+
+class _ChatThreadPageState extends State<ChatThreadPage> {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  final TextEditingController _inputCtrl = TextEditingController();
+  final ScrollController _scrollCtrl = ScrollController();
+
+  List<_ChatMessage> _messages = const [];
+  bool _loading = true;
+  bool _sending = false;
+  RealtimeChannel? _channel;
+  String? _otherName;
+  String? _otherRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _otherName = widget.item.name.isNotEmpty ? widget.item.name : null;
+    _loadOtherNameIfNeeded();
+    _loadMessages();
+    _subscribe();
+  }
+
+  @override
+  void dispose() {
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _loadOtherNameIfNeeded() async {
+    if (_otherName != null &&
+        _otherName!.trim().isNotEmpty &&
+        _otherName != 'User') return;
+
+    // Prefer rescuer/shelter names if IDs are provided
+    if (widget.item.rescuerId != null && widget.item.rescuerId!.isNotEmpty) {
+      final resc =
+          await _supabase
+              .from('rescuer')
+              .select('rescuer_name')
+              .eq('rescuer_id', widget.item.rescuerId!)
+              .maybeSingle();
+      if (resc != null &&
+          (resc['rescuer_name'] as String?)?.trim().isNotEmpty == true) {
+        setState(() => _otherName = (resc['rescuer_name'] as String).trim());
+        return;
+      }
+    }
+    if (widget.item.shelterId != null && widget.item.shelterId!.isNotEmpty) {
+      final shel =
+          await _supabase
+              .from('shelter')
+              .select('shelter_name')
+              .eq('shelter_id', widget.item.shelterId!)
+              .maybeSingle();
+      if (shel != null &&
+          (shel['shelter_name'] as String?)?.trim().isNotEmpty == true) {
+        setState(() => _otherName = (shel['shelter_name'] as String).trim());
+        return;
+      }
+    }
+
+    final profile =
+        await _supabase.from('user').select('name, email, role').eq('id', widget.item.userId).maybeSingle();
+    if (!mounted) return;
+    _otherRole = profile?['role'] as String?;
+    final fetched =
+        ((profile?['name'] as String?)?.trim().isNotEmpty ?? false)
+            ? (profile?['name'] as String).trim()
+            : ((profile?['email'] as String?)?.trim().isNotEmpty ?? false)
+                ? (profile?['email'] as String).trim()
+                : (widget.item.name.isNotEmpty ? widget.item.name : 'User');
+
+    // Try rescuer/shelter tables if applicable
+    if (_otherRole == 'rescuer') {
+      final resc =
+          await _supabase.from('rescuer').select('rescuer_name').eq('rescuer_id', widget.item.userId).maybeSingle();
+      if (resc != null &&
+          (resc['rescuer_name'] as String?)?.trim().isNotEmpty == true) {
+        setState(() => _otherName = (resc['rescuer_name'] as String).trim());
+        return;
+      }
+    } else if (_otherRole == 'shelter') {
+      final shel =
+          await _supabase.from('shelter').select('shelter_name').eq('shelter_id', widget.item.userId).maybeSingle();
+      if (shel != null &&
+          (shel['shelter_name'] as String?)?.trim().isNotEmpty == true) {
+        setState(() => _otherName = (shel['shelter_name'] as String).trim());
+        return;
+      }
+    }
+
+    setState(() {
+      _otherName = fetched;
+    });
+  }
+
+  Future<void> _loadMessages() async {
+    setState(() {
+      _loading = true;
+    });
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() {
+        _messages = const [];
+        _loading = false;
+      });
+      return;
+    }
+    final other = widget.item.userId;
+    try {
+      final response =
+          await _supabase
+              .from('inquiry')
+              .select('inquiry_id, message, date, sender_id, receiver_id')
+              .or(
+                'and(sender_id.eq.$uid,receiver_id.eq.$other),and(sender_id.eq.$other,receiver_id.eq.$uid)',
+              )
+              .order('date', ascending: true)
+              .limit(400);
+
+      final list = (response as List)
+          .map((raw) => _ChatMessage.fromMap(Map<String, dynamic>.from(raw)))
+          .toList();
+
+      if (!mounted) return;
+      setState(() {
+        _messages = list;
+        _loading = false;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not load messages: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  void _subscribe() {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) return;
+    final other = widget.item.userId;
+    _channel = _supabase.channel(
+      'inquiry-${uid.substring(0, 6)}-${other.substring(0, 6)}',
+      opts: const RealtimeChannelConfig(),
+    )
+      ..onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'inquiry',
+        callback: (payload) {
+          final newRecord = payload.newRecord;
+          if (newRecord == null) return;
+          final senderId = newRecord['sender_id'] as String?;
+          final receiverId = newRecord['receiver_id'] as String?;
+          final isMine = senderId == uid && receiverId == other;
+          final isTheirs = senderId == other && receiverId == uid;
+          if (!isMine && !isTheirs) return;
+          final msg =
+              _ChatMessage.fromMap(Map<String, dynamic>.from(newRecord));
+          if (!mounted) return;
+          setState(() => _messages = [..._messages, msg]);
+          _scrollToBottom();
+        },
+      )
+      ..subscribe();
+  }
+
+  Future<void> _sendMessage() async {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty || _sending) return;
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please log in to send messages.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _sending = true);
+    try {
+      final bool hasRescuer =
+          widget.item.rescuerId != null && widget.item.rescuerId!.isNotEmpty;
+      final bool hasShelter =
+          widget.item.shelterId != null && widget.item.shelterId!.isNotEmpty;
+
+      final payload = <String, dynamic>{
+        'message': text,
+        'sender_id': uid,
+        'receiver_id': widget.item.userId,
+        if (hasRescuer) 'rescuer_id': widget.item.rescuerId,
+        if (hasShelter) 'shelter_id': widget.item.shelterId,
+        // Fallback to satisfy NOT NULL if neither provided
+        if (!hasRescuer && !hasShelter) 'shelter_id': widget.item.userId,
+      };
+
+      final inserted =
+          await _supabase
+              .from('inquiry')
+              .insert(payload)
+              .select('inquiry_id, message, date, sender_id, receiver_id')
+              .maybeSingle();
+
+      if (inserted != null) {
+        final msg =
+            _ChatMessage.fromMap(Map<String, dynamic>.from(inserted));
+        if (mounted) {
+          setState(() => _messages = [..._messages, msg]);
+          _scrollToBottom();
+        }
+      }
+
+      _inputCtrl.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not send: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent + 80,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final name = _otherName ?? widget.item.name;
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5F5),
       body: SafeArea(
         child: Column(
           children: [
-            _Header(item: item),
+            _Header(name: name),
             const Divider(height: 1, color: Color(0xFFD8D0E3)),
             const SizedBox(height: 12),
-            const Expanded(child: _MessageList()),
-            const _MessageInputBar(),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
+                      ),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) {
+                        final msg = _messages[index];
+                        final isMine =
+                            msg.senderId == _supabase.auth.currentUser?.id;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: isMine
+                              ? _OutgoingBubble(
+                                  text: msg.content,
+                                  time: msg.displayTime,
+                                )
+                              : _IncomingBubble(
+                                  text: msg.content,
+                                  time: msg.displayTime,
+                                ),
+                        );
+                      },
+                    ),
+            ),
+            _MessageInputBar(
+              controller: _inputCtrl,
+              sending: _sending,
+              onSend: _sendMessage,
+            ),
           ],
         ),
       ),
       bottomNavigationBar: RoleAwareBottomNav(
         onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
         onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-        onMessages: () =>
-            Navigator.pushReplacementNamed(context, '/chats'),
-        onMeetings: () =>
-            Navigator.pushReplacementNamed(context, '/meetings'),
-        onProfile: () =>
-            Navigator.pushReplacementNamed(context, '/profile'),
+        onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
+        onMeetings: () => Navigator.pushReplacementNamed(context, '/meetings'),
+        onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
         activeTab: BottomNavTab.messages,
       ),
     );
   }
 }
 
-void _noop() {}
-
 class _Header extends StatelessWidget {
-  const _Header({required this.item});
+  const _Header({required this.name});
 
-  final ChatPreviewItem item;
+  final String name;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: const BoxDecoration(
         color: Color(0xFFF6F5F5),
         boxShadow: [
@@ -60,54 +340,20 @@ class _Header extends StatelessWidget {
       ),
       child: Row(
         children: [
-          InkWell(
-            onTap: () => Navigator.pop(context),
-            child: const Icon(
-              Icons.arrow_back_ios_new,
-              size: 18,
-              color: Color(0xFF2D0C57),
-            ),
+          IconButton(
+            onPressed: () => Navigator.maybePop(context),
+            icon: const Icon(Icons.arrow_back_ios_new, color: Color(0xFF2D0C57)),
           ),
-          const SizedBox(width: 16),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(100),
-            child: SizedBox(
-              width: 42,
-              height: 42,
-              child: FadeInImage.assetNetwork(
-                placeholder: 'assets/images/catlogo.png',
-                image: item.avatarUrl,
-                fit: BoxFit.cover,
-                imageErrorBuilder:
-                    (_, __, ___) => Image.asset(
-                      'assets/images/catlogo.png',
-                      fit: BoxFit.cover,
-                    ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.name,
-                  style: const TextStyle(
-                    color: Color(0xFF0D1217),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Shelter',
-                  style: const TextStyle(
-                    color: Color(0xFF686A8A),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
+            child: Text(
+              name,
+              style: const TextStyle(
+                color: Color(0xFF0D1217),
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Container(
@@ -119,44 +365,6 @@ class _Header extends StatelessWidget {
             ),
             child: const Icon(Icons.call_outlined, color: Color(0xFF2D0C57)),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MessageList extends StatelessWidget {
-  const _MessageList();
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _OutgoingBubble(text: 'Hey there! 👋 ', time: '10:10'),
-          SizedBox(height: 10),
-          _OutgoingBubble(
-            text:
-                'He seems amazing! can’t wait to meet him tomorrow. When will I be able to pick him up?',
-            time: '10:11',
-          ),
-          SizedBox(height: 10),
-          _IncomingBubble(text: 'Hi!', time: '10:10'),
-          SizedBox(height: 10),
-          _IncomingBubble(
-            text:
-                'Awesome, thanks for adopting him! He can be picked up at 14:00. 🎉',
-            time: '10:10',
-          ),
-          SizedBox(height: 10),
-          _OutgoingBubble(
-            text: 'No problem at all! \nI’ll be sure to update you.',
-            time: '10:12',
-          ),
-          SizedBox(height: 10),
-          _IncomingBubble(text: 'You’re Welcome!!', time: '10:11'),
         ],
       ),
     );
@@ -255,7 +463,15 @@ class _IncomingBubble extends StatelessWidget {
 }
 
 class _MessageInputBar extends StatelessWidget {
-  const _MessageInputBar();
+  const _MessageInputBar({
+    required this.controller,
+    required this.sending,
+    required this.onSend,
+  });
+
+  final TextEditingController controller;
+  final bool sending;
+  final VoidCallback onSend;
 
   @override
   Widget build(BuildContext context) {
@@ -282,13 +498,14 @@ class _MessageInputBar extends StatelessWidget {
               ),
               height: 56,
               alignment: Alignment.centerLeft,
-              child: const Text(
-                'Type a message ...',
-                style: TextStyle(
-                  color: Color(0xFF0D1217),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w400,
+              child: TextField(
+                controller: controller,
+                decoration: const InputDecoration(
+                  hintText: 'Type a message ...',
+                  border: InputBorder.none,
                 ),
+                minLines: 1,
+                maxLines: 3,
               ),
             ),
           ),
@@ -307,10 +524,54 @@ class _MessageInputBar extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Icon(Icons.send, color: Colors.white, size: 20),
+            child: sending
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : IconButton(
+                    onPressed: onSend,
+                    icon: const Icon(Icons.send, color: Colors.white, size: 20),
+                  ),
           ),
         ],
       ),
     );
   }
+}
+
+class _ChatMessage {
+  final int id;
+  final String senderId;
+  final String receiverId;
+  final String content;
+  final DateTime createdAt;
+
+  _ChatMessage({
+    required this.id,
+    required this.senderId,
+    required this.receiverId,
+    required this.content,
+    required this.createdAt,
+  });
+
+  factory _ChatMessage.fromMap(Map<String, dynamic> map) {
+    return _ChatMessage(
+      id: (map['inquiry_id'] as num?)?.toInt() ??
+          (map['id'] as num?)?.toInt() ??
+          0,
+      senderId: (map['sender_id'] as String?) ?? '',
+      receiverId: (map['receiver_id'] as String?) ?? '',
+      content: (map['message'] as String?) ?? '',
+      createdAt:
+          DateTime.tryParse(map['date'] as String? ?? '') ?? DateTime.now(),
+    );
+  }
+
+  String get displayTime =>
+      '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
 }

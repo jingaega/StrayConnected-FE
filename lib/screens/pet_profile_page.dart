@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/arrange_adoption_page.dart';
+import 'package:strayconnected/models/chat_preview_item.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
@@ -28,6 +29,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
   bool _isLoading = false;
   String? _loadError;
   String _role = 'user';
+  bool _contactLoading = false;
 
   @override
   void initState() {
@@ -167,10 +169,18 @@ class _PetProfilePageState extends State<PetProfilePage> {
                       ),
                       backgroundColor: Colors.white,
                     ),
-                    onPressed: () {
-                      // TODO: contact the lister (rescuer / shelter)
-                    },
-                    child: const Icon(Icons.help_outline, color: _primary),
+                    onPressed: _contactLoading ? null : _handleContact,
+                    child:
+                        _contactLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: _primary,
+                                ),
+                              )
+                            : const Icon(Icons.help_outline, color: _primary),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -233,9 +243,66 @@ class _PetProfilePageState extends State<PetProfilePage> {
         builder: (_) => ArrangeAdoptionPage(
           pet: _pet,
           isAdopter: _isAdopter,
+          shelterId: _pet.shelterId,
+          rescuerId: _pet.rescuerId,
         ),
       ),
     );
+  }
+
+  Future<void> _handleContact() async {
+    final contactId = _pet.rescuerId ?? _pet.shelterId;
+    if (contactId == null || contactId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No rescuer or shelter linked to this animal.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _contactLoading = true);
+    try {
+      String displayName = 'Rescuer';
+      final data =
+          await _supabase
+              .from('user')
+              .select('name, email')
+              .eq('id', contactId)
+              .maybeSingle();
+      if (data != null) {
+        displayName =
+            (data['name'] as String?)?.trim().isNotEmpty == true
+                ? (data['name'] as String).trim()
+                : (data['email'] as String?) ?? displayName;
+      }
+
+      if (!mounted) return;
+      Navigator.pushNamed(
+        context,
+        '/chatThread',
+        arguments: ChatPreviewItem(
+          userId: contactId,
+          name: displayName,
+          lastMessage: '',
+          lastAt: DateTime.now(),
+          avatarUrl: 'https://placehold.co/42x42',
+          rescuerId: _pet.rescuerId,
+          shelterId: _pet.shelterId,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not start chat: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _contactLoading = false);
+    }
   }
 }
 

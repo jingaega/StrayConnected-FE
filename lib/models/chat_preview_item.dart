@@ -1,15 +1,21 @@
 class ChatPreviewItem {
+  final String userId;
   final String name;
-  final String message;
-  final String time;
+  final String lastMessage;
+  final DateTime lastAt;
   final int unreadCount;
-  final String avatarUrl;
+  final String? avatarUrl;
+  final String? rescuerId;
+  final String? shelterId;
 
   const ChatPreviewItem({
+    required this.userId,
     required this.name,
-    required this.message,
-    required this.time,
-    required this.unreadCount,
-    required this.avatarUrl,
+    required this.lastMessage,
+    required this.lastAt,
+    this.unreadCount = 0,
+    this.avatarUrl,
+    this.rescuerId,
+    this.shelterId,
   });
 }
