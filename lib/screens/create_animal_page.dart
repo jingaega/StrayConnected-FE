@@ -83,8 +83,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Match exactly with public.animal schema
-      await _supabase.from('animal').insert({
+      final Map<String, dynamic> payload = {
         'name': _nameCtrl.text.trim(),
         'age': _selectedAge,
         'breed': _selectedBreed,
@@ -92,7 +91,17 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
         'description': _descriptionCtrl.text.trim(),
         'health_status': _healthCtrl.text.trim(),
         'link_picture': '', // can be updated later with real image URL
-      });
+      };
+
+      // Tag ownership based on role
+      if (_role == 'rescuer') {
+        payload['rescuer_id'] = userId;
+      } else if (_role == 'shelter') {
+        payload['shelter_id'] = userId;
+      }
+
+      // Match exactly with public.animal schema
+      await _supabase.from('animal').insert(payload);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

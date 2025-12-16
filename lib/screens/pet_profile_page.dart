@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/screens/arrange_adoption_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
@@ -26,13 +27,38 @@ class _PetProfilePageState extends State<PetProfilePage> {
   late Pet _pet;
   bool _isLoading = false;
   String? _loadError;
+  String _role = 'user';
 
   @override
   void initState() {
     super.initState();
     _pet = widget.pet;
+    _loadRole();
     _refreshPet();
   }
+
+  Future<void> _loadRole() async {
+    final uid = _supabase.auth.currentUser?.id;
+    if (uid == null) {
+      setState(() => _role = 'user');
+      return;
+    }
+    try {
+      final data =
+          await _supabase
+              .from('user')
+              .select('role')
+              .eq('id', uid)
+              .maybeSingle();
+      setState(() {
+        _role = (data?['role'] as String?) ?? 'user';
+      });
+    } catch (_) {
+      setState(() => _role = 'user');
+    }
+  }
+
+  bool get _isAdopter => _role == 'adopter';
 
   Future<void> _refreshPet() async {
     setState(() {
@@ -45,7 +71,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           await _supabase
               .from('animal')
               .select(
-                'animal_id, name, age, breed, species, description, health_status, shelter_id, link_picture',
+                'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
               )
               .eq('animal_id', widget.pet.animalId)
               .maybeSingle();
@@ -160,7 +186,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
                         ),
                       ),
                       onPressed: () {
-                        // TODO: navigate to adoption meeting form
+                        _handleArrangeAdoption();
                       },
                       child: const Text(
                         'ARRANGE ADOPTION',
@@ -184,6 +210,26 @@ class _PetProfilePageState extends State<PetProfilePage> {
         onProfile: () =>
             Navigator.pushReplacementNamed(context, '/profile'),
         activeTab: BottomNavTab.home,
+      ),
+    );
+  }
+
+  void _handleArrangeAdoption() {
+    if (!_isAdopter) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only adopters can arrange an adoption meeting.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ArrangeAdoptionPage(
+          pet: _pet,
+          isAdopter: _isAdopter,
+        ),
       ),
     );
   }
