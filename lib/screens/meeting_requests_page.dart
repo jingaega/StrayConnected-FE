@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
@@ -9,6 +7,9 @@ const Color _primary = Color(0xFF2D0C57);
 const Color _muted = Color(0xFF9586A8);
 const Color _stroke = Color(0xFFD8D0E3);
 const Color _accent = Color(0xFF0BCE83);
+const Color _warn = Color(0xFFFFB04C);
+const Color _reject = Colors.redAccent;
+const Color _info = Color(0xFF5B30B5);
 
 class MeetingRequestsPage extends StatefulWidget {
   const MeetingRequestsPage({super.key});
@@ -103,10 +104,19 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
+      case 'accepted':
       case 'approved':
+      case 'confirmed':
         return _accent;
+      case 'pending':
+        return _warn;
       case 'rejected':
-        return Colors.redAccent;
+      case 'cancelled':
+        return _reject;
+      case 'reschedule requested':
+        return _info;
+      case 'completed':
+        return Colors.teal;
       default:
         return _muted;
     }
@@ -118,7 +128,6 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
     const double navHeight = 86;
     final title =
         (_role == 'adopter') ? 'My Adoption Requests' : 'Meeting Requests';
-    final bool canModerate = _role == 'rescuer' || _role == 'shelter';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -165,14 +174,21 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
                       ),
                     )
                   else
-                    ..._items.map((item) => _MeetingCard(
-                      item: item,
-                      statusColor: _statusColor(item.status),
-                      showActions: canModerate && item.status.toLowerCase() == 'pending',
-                      busy: _updating.contains(item.meetingId),
-                      onAccept: () => _updateStatus(item, 'Approved'),
-                      onReject: () => _updateStatus(item, 'Rejected'),
-                    )),
+                    ..._items.map(
+                      (item) => _MeetingCard(
+                        item: item,
+                        statusColor: _statusColor(item.status),
+                        role: _role,
+                        busy: _updating.contains(item.meetingId),
+                        onAccept: () => _updateStatus(item, 'Accepted'),
+                        onReject: () => _updateStatus(item, 'Rejected'),
+                        onReschedule: () => _updateStatus(item, 'Reschedule Requested'),
+                        onChat: () => Navigator.pushReplacementNamed(context, '/chats'),
+                        onEdit: () => _showToast('Edit request coming soon'),
+                        onCancel: () => _updateStatus(item, 'Cancelled'),
+                        onViewDetails: () => _showToast('Viewing details'),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -217,9 +233,9 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Marked as $status'),
-          backgroundColor: status.toLowerCase() == 'approved'
+          backgroundColor: status.toLowerCase() == 'accepted'
               ? _accent
-              : Colors.redAccent,
+              : (status.toLowerCase() == 'rejected' ? _reject : _info),
         ),
       );
     } catch (e) {
@@ -232,6 +248,12 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
         ),
       );
     }
+  }
+
+  void _showToast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg)),
+    );
   }
 }
 
@@ -291,22 +313,84 @@ class MeetingItem {
 class _MeetingCard extends StatelessWidget {
   final MeetingItem item;
   final Color statusColor;
-  final bool showActions;
   final bool busy;
+  final String role;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
+  final VoidCallback? onReschedule;
+  final VoidCallback? onChat;
+  final VoidCallback? onEdit;
+  final VoidCallback? onCancel;
+  final VoidCallback? onViewDetails;
 
   const _MeetingCard({
     required this.item,
     required this.statusColor,
-    this.showActions = false,
+    required this.role,
     this.busy = false,
     this.onAccept,
     this.onReject,
+    this.onReschedule,
+    this.onChat,
+    this.onEdit,
+    this.onCancel,
+    this.onViewDetails,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool isAdopter = role == 'adopter';
+    final bool isModerator = role == 'rescuer' || role == 'shelter';
+    final statusLower = item.status.toLowerCase();
+
+    Widget actionRow() {
+      if (isAdopter) {
+        if (statusLower == 'pending') {
+          return _AdopterActions(
+            onEdit: onEdit,
+            onCancel: onCancel,
+            onChat: onChat,
+          );
+        } else if (statusLower == 'accepted' || statusLower == 'approved') {
+          return _AdopterAcceptedActions(
+            onViewDetails: onViewDetails,
+            onChat: onChat,
+          );
+        } else if (statusLower == 'rejected') {
+          return _AdopterRejectedActions(onReschedule: onReschedule);
+        } else if (statusLower == 'reschedule requested') {
+          return _AdopterRescheduleActions(onReschedule: onReschedule);
+        }
+        return _AdopterAcceptedActions(
+          onViewDetails: onViewDetails,
+          onChat: onChat,
+        );
+      }
+      if (isModerator && statusLower == 'pending') {
+        return _ModeratorActions(
+          busy: busy,
+          onAccept: onAccept,
+          onReject: onReject,
+          onReschedule: onReschedule,
+          onChat: onChat,
+        );
+      }
+      return _ModeratorActions(
+        busy: busy,
+        onAccept: null,
+        onReject: null,
+        onReschedule: null,
+        onChat: onChat,
+      );
+    }
+
+    String counterpart() {
+      if (isAdopter) {
+        return 'Shelter/Rescuer: ${(item.shelterId ?? item.rescuerId ?? 'Unknown').toString()}';
+      }
+      return 'Adopter: ${(item.adopterId ?? 'Unknown').toString()}';
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -346,12 +430,28 @@ class _MeetingCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        counterpart(),
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                        ),
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                        '${item.date} • ${item.time}',
+                        '${item.date} • ${item.time} • On-site',
                         style: const TextStyle(
                           color: _muted,
                           fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Timezone: Local | Status updated',
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 12,
                         ),
                       ),
                     ],
@@ -376,46 +476,213 @@ class _MeetingCard extends StatelessWidget {
               ],
             ),
           ),
-          if (showActions)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: busy ? null : onReject,
-                    child: const Text(
-                      'Reject',
-                      style: TextStyle(color: Colors.redAccent),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Divider(color: _stroke, height: 14),
+                Row(
+                  children: const [
+                    Icon(Icons.timeline, size: 16, color: _muted),
+                    SizedBox(width: 6),
+                    Text(
+                      'Requested → Pending',
+                      style: TextStyle(color: _muted, fontSize: 12),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.sticky_note_2_outlined, size: 16, color: _muted),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Shelter response: (none yet)',
+                        style: const TextStyle(color: _muted, fontSize: 12),
                       ),
                     ),
-                    onPressed: busy ? null : onAccept,
-                    child: busy
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('Approve'),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                actionRow(),
+              ],
             ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _ModeratorActions extends StatelessWidget {
+  const _ModeratorActions({
+    required this.busy,
+    this.onAccept,
+    this.onReject,
+    this.onReschedule,
+    this.onChat,
+  });
+
+  final bool busy;
+  final VoidCallback? onAccept;
+  final VoidCallback? onReject;
+  final VoidCallback? onReschedule;
+  final VoidCallback? onChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (onChat != null)
+          TextButton.icon(
+            onPressed: onChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Message'),
+          ),
+        const Spacer(),
+        TextButton(
+          onPressed: busy ? null : onReject,
+          child: const Text('Reject', style: TextStyle(color: _reject)),
+        ),
+        const SizedBox(width: 6),
+        TextButton(
+          onPressed: busy ? null : onReschedule,
+          child: const Text('Reschedule'),
+        ),
+        const SizedBox(width: 6),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          onPressed: busy ? null : onAccept,
+          child: busy
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Text('Accept'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdopterActions extends StatelessWidget {
+  const _AdopterActions({this.onEdit, this.onCancel, this.onChat});
+  final VoidCallback? onEdit;
+  final VoidCallback? onCancel;
+  final VoidCallback? onChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (onChat != null)
+          TextButton.icon(
+            onPressed: onChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Message'),
+          ),
+        const Spacer(),
+        TextButton(onPressed: onCancel, child: const Text('Cancel')),
+        const SizedBox(width: 6),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          onPressed: onEdit,
+          child: const Text('Edit request'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdopterAcceptedActions extends StatelessWidget {
+  const _AdopterAcceptedActions({this.onViewDetails, this.onChat});
+  final VoidCallback? onViewDetails;
+  final VoidCallback? onChat;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (onChat != null)
+          TextButton.icon(
+            onPressed: onChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Message'),
+          ),
+        const Spacer(),
+        TextButton(
+          onPressed: onViewDetails,
+          child: const Text('View details'),
+        ),
+        const SizedBox(width: 6),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _accent,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+          onPressed: onViewDetails,
+          child: const Text('Get directions'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdopterRejectedActions extends StatelessWidget {
+  const _AdopterRejectedActions({this.onReschedule});
+  final VoidCallback? onReschedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Spacer(),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _info,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: onReschedule,
+          child: const Text('Request another time'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdopterRescheduleActions extends StatelessWidget {
+  const _AdopterRescheduleActions({this.onReschedule});
+  final VoidCallback? onReschedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Spacer(),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _info,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: onReschedule,
+          child: const Text('Pick a new time'),
+        ),
+      ],
     );
   }
 }

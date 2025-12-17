@@ -157,6 +157,15 @@ class _ProfilePageState extends State<ProfilePage> {
                               onTap: () =>
                                   Navigator.pushNamed(context, '/myAnimals'),
                             ),
+                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
+                            _SettingsTile(
+                              icon: Icons.place_outlined,
+                              iconColor: Colors.teal,
+                              title: 'Location',
+                              subtitle: 'View your map location',
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/location'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
+import 'package:strayconnected/screens/location_picker_page.dart';
+import 'package:geolocator/geolocator.dart';
+
+const Color _muted = Color(0xFF9586A8);
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -24,11 +28,13 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-
+  String? _pickedAddress;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _agree = false;
   String _selectedRole = 'adopter'; // adopter, rescuer, shelter
+  double? _lat;
+  double? _lng;
 
   @override
   void dispose() {
@@ -47,6 +53,51 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
+  Future<void> _useCurrentLocation() async {
+    try {
+      final perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission denied'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+      setState(() {
+        _lat = pos.latitude;
+        _lng = pos.longitude;
+        _pickedAddress = 'Current location';
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not get location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickOnMap() async {
+    final result = await Navigator.push<PickedLocation>(
+      context,
+      MaterialPageRoute(builder: (_) => const LocationPickerPage()),
+    );
+    if (result != null) {
+      setState(() {
+        _lat = result.latitude;
+        _lng = result.longitude;
+        _pickedAddress = result.address;
+      });
+    }
+  }
+
   // ===== Submit =====
   Future<void> _submit() async {
     final ok = _formKey.currentState?.validate() ?? false;
@@ -63,11 +114,29 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
+      double? lat;
+      double? lng;
+      if (_selectedRole != 'adopter') {
+        if (_lat == null || _lng == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Please set your location via map or GPS.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        lat = _lat;
+        lng = _lng;
+      }
+
       await _auth.signUp(
         email: cleanEmail(_emailController.text), // <- use cleaned email
         password: _passwordController.text.trim(),
         name: _usernameController.text.trim(),
         role: _selectedRole,
+        latitude: lat,
+        longitude: lng,
       );
 
       if (mounted) {
@@ -293,6 +362,60 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
 
                       const SizedBox(height: 16),
+
+                      if (_selectedRole != 'adopter') ...[
+                        const Text(
+                          'Location (for rescuer/shelter)',
+                          style: TextStyle(fontSize: 16, color: Color(0xFF9586A8)),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Color(0xFFD9D0E3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _pickedAddress ?? 'No location selected',
+                                style: const TextStyle(
+                                    color: Color(0xFF2D0C57),
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              if (_lat != null && _lng != null)
+                                Text(
+                                  'Lat: ${_lat!.toStringAsFixed(5)}, Lng: ${_lng!.toStringAsFixed(5)}',
+                                  style:
+                                      const TextStyle(color: _muted, fontSize: 12),
+                                ),
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.my_location),
+                                      onPressed: _useCurrentLocation,
+                                      label: const Text('Use my location'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      icon: const Icon(Icons.map_outlined),
+                                      onPressed: _pickOnMap,
+                                      label: const Text('Pick on map'),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
                       // Terms
                       Row(

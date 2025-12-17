@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:strayconnected/screens/arrange_adoption_page.dart';
 import 'package:strayconnected/models/chat_preview_item.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
@@ -30,6 +31,9 @@ class _PetProfilePageState extends State<PetProfilePage> {
   String? _loadError;
   String _role = 'user';
   bool _contactLoading = false;
+  double? _distanceKm;
+  String? _distanceError;
+  bool _distanceLoading = false;
 
   @override
   void initState() {
@@ -85,6 +89,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
         setState(() {
           _pet = updated;
         });
+        _computeDistance();
       }
     } catch (e) {
       if (mounted) {
@@ -112,10 +117,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
       if (_pet.species != null && _pet.species!.isNotEmpty)
         _pet.species!.trim(),
     ].join(' • ');
-    final String detailLine = [
-      if (traits.isNotEmpty) traits,
-      '20km away',
-    ].join(' - ');
+    final String detailLine = traits;
 
     final String descriptionText =
         (_pet.description != null && _pet.description!.trim().isNotEmpty)
@@ -146,6 +148,9 @@ class _PetProfilePageState extends State<PetProfilePage> {
                       descriptionText: descriptionText,
                       isLoading: _isLoading,
                       loadError: _loadError,
+                      distanceKm: _distanceKm,
+                      distanceError: _distanceError,
+                      distanceLoading: _distanceLoading,
                     ),
                   ),
                 ),
@@ -304,6 +309,71 @@ class _PetProfilePageState extends State<PetProfilePage> {
       if (mounted) setState(() => _contactLoading = false);
     }
   }
+
+  Future<void> _computeDistance() async {
+    final ownerId = _pet.shelterId ?? _pet.rescuerId;
+    if (ownerId == null || ownerId.isEmpty) {
+      setState(() {
+        _distanceError = 'No owner location available.';
+        _distanceKm = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _distanceLoading = true;
+      _distanceError = null;
+    });
+
+    try {
+      final perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        setState(() {
+          _distanceError = 'Location permission denied.';
+          _distanceLoading = false;
+        });
+        return;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+
+      final owner =
+          await _supabase
+              .from('user')
+              .select('latitude, longitude')
+              .eq('id', ownerId)
+              .maybeSingle();
+
+      final ownerLat = (owner?['latitude'] as num?)?.toDouble();
+      final ownerLng = (owner?['longitude'] as num?)?.toDouble();
+      if (ownerLat == null || ownerLng == null) {
+        setState(() {
+          _distanceError = 'Owner location not set.';
+          _distanceLoading = false;
+        });
+        return;
+      }
+
+      final meters = Geolocator.distanceBetween(
+        pos.latitude,
+        pos.longitude,
+        ownerLat,
+        ownerLng,
+      );
+      setState(() {
+        _distanceKm = meters / 1000;
+        _distanceLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _distanceError = 'Distance unavailable: $e';
+        _distanceLoading = false;
+      });
+    }
+  }
 }
 
 class _HeroSection extends StatelessWidget {
@@ -363,6 +433,7 @@ class _HeroSection extends StatelessWidget {
       ),
     );
   }
+
 }
 
 class _InfoCard extends StatelessWidget {
@@ -373,6 +444,9 @@ class _InfoCard extends StatelessWidget {
     required this.descriptionText,
     required this.isLoading,
     required this.loadError,
+    this.distanceKm,
+    this.distanceError,
+    this.distanceLoading = false,
   });
 
   final Pet pet;
@@ -381,6 +455,9 @@ class _InfoCard extends StatelessWidget {
   final String descriptionText;
   final bool isLoading;
   final String? loadError;
+  final double? distanceKm;
+  final String? distanceError;
+  final bool distanceLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -441,6 +518,37 @@ class _InfoCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.place, size: 16, color: _muted),
+                const SizedBox(width: 6),
+                if (distanceLoading)
+                  const Text(
+                    'Calculating distance...',
+                    style: TextStyle(color: _muted, fontSize: 12),
+                  )
+                else if (distanceKm != null)
+                  Text(
+                    '${distanceKm!.toStringAsFixed(1)} km away',
+                    style: const TextStyle(color: _muted, fontSize: 12),
+                  )
+                else if (distanceError != null)
+                  Expanded(
+                    child: Text(
+                      distanceError!,
+                      style: const TextStyle(color: Colors.red, fontSize: 12),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  )
+                else
+                  const Text(
+                    'Distance unavailable',
+                    style: TextStyle(color: _muted, fontSize: 12),
+                  ),
               ],
             ),
             const SizedBox(height: 14),

@@ -8,6 +8,8 @@ class AuthRepository {
     required String password,
     required String name,
     String role = 'adopter', // adopter | rescuer | shelter
+    double? latitude,
+    double? longitude,
   }) async {
     final res = await _client.auth.signUp(email: email, password: password);
     final user = res.user;
@@ -16,12 +18,18 @@ class AuthRepository {
       throw Exception('Sign up failed');
     }
 
-    await _client.from('user').insert({
-      'id': user.id,
-      'email': email,
-      'name': name,
-      'role': role,
-    });
+    // Ensure profile row exists/updates with selected role and name
+    await _client.from('user').upsert(
+      {
+        'id': user.id,
+        'email': email,
+        'name': name,
+        'role': role,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+      },
+      onConflict: 'id',
+    );
   }
 
   Future<void> signIn({
@@ -57,4 +65,3 @@ class AuthRepository {
   }
 
 }
-

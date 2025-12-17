@@ -123,31 +123,25 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
             RefreshIndicator(
               onRefresh: _loadRoleAndAnimals,
               child: ListView(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, navHeight + 24 + paddingBottom),
+                padding: EdgeInsets.fromLTRB(20, 12, 20, navHeight + 24 + paddingBottom),
                 children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new, color: _primary),
-                        onPressed: () => Navigator.maybePop(context),
-                      ),
-                      const SizedBox(width: 4),
-                      const Text(
-                        'My Animals',
-                        style: TextStyle(
-                          color: _primary,
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 4),
+                  const Text(
+                    'My Animals',
+                    style: TextStyle(
+                      color: _primary,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w700,
+                      height: 1.21,
+                      letterSpacing: 0.41,
+                    ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 18),
                   _SearchField(
                     controller: _searchCtrl,
                     onChanged: () => setState(() {}),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 18),
                   if (_loading)
                     const Center(
                       child: Padding(
@@ -249,7 +243,7 @@ class _AnimalGrid extends StatelessWidget {
         crossAxisCount: 2,
         mainAxisSpacing: 12,
         crossAxisSpacing: 12,
-        childAspectRatio: 0.78,
+        childAspectRatio: 0.84,
       ),
       itemBuilder: (context, index) {
         final pet = animals[index];
@@ -296,7 +290,7 @@ class _AnimalCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: _primary,
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),
             ),
