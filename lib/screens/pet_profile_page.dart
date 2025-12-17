@@ -77,7 +77,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           await _supabase
               .from('animal')
               .select(
-                'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
+                'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, shelter_id, rescuer_id, link_picture',
               )
               .eq('animal_id', widget.pet.animalId)
               .maybeSingle();
@@ -134,7 +134,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _HeroSection(
-                  pet: _pet,
+                  imageUrls: _pet.imageUrls,
                   onBack: () => Navigator.of(context).maybePop(),
                 ),
                 Transform.translate(
@@ -376,56 +376,112 @@ class _PetProfilePageState extends State<PetProfilePage> {
   }
 }
 
-class _HeroSection extends StatelessWidget {
-  const _HeroSection({required this.pet, required this.onBack});
+class _HeroSection extends StatefulWidget {
+  const _HeroSection({required this.imageUrls, required this.onBack});
 
-  final Pet pet;
+  final List<String> imageUrls;
   final VoidCallback onBack;
+
+  @override
+  State<_HeroSection> createState() => _HeroSectionState();
+}
+
+class _HeroSectionState extends State<_HeroSection> {
+  late final PageController _controller;
+  int _activeIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageUrls.length != oldWidget.imageUrls.length) {
+      _activeIndex = 0;
+      if (_controller.hasClients) {
+        _controller.jumpToPage(0);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     const double heroHeight = 340;
+    final images = widget.imageUrls;
 
     return SizedBox(
       height: heroHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          _HeroImage(linkPicture: pet.linkPicture),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: const Alignment(0.5, 0.0),
-                end: const Alignment(0.5, 1.0),
-                colors: [
-                  Color.fromRGBO(0, 0, 0, 0.10),
-                  Color.fromRGBO(0, 0, 0, 0.30),
-                  Color.fromRGBO(0, 0, 0, 0.55),
-                ],
+          if (images.isEmpty)
+            _fallbackHeroImage()
+          else
+            PageView.builder(
+              controller: _controller,
+              itemCount: images.length,
+              physics: const PageScrollPhysics(),
+              onPageChanged: (index) => setState(() => _activeIndex = index),
+              itemBuilder: (context, index) {
+                final url = images[index];
+                return Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _fallbackHeroImage(),
+                );
+              },
+            ),
+          IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: const Alignment(0.5, 0.0),
+                  end: const Alignment(0.5, 1.0),
+                  colors: [
+                    Color.fromRGBO(0, 0, 0, 0.10),
+                    Color.fromRGBO(0, 0, 0, 0.30),
+                    Color.fromRGBO(0, 0, 0, 0.55),
+                  ],
+                ),
               ),
             ),
           ),
-          Positioned(
-            bottom: 28,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                _Dot(isActive: true),
-                SizedBox(width: 8),
-                _Dot(isActive: false),
-                SizedBox(width: 8),
-                _Dot(isActive: false),
-              ],
+          if (images.length > 1)
+            Positioned(
+              bottom: 28,
+              left: 0,
+              right: 0,
+              child: IgnorePointer(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    images.length,
+                    (index) => Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: _Dot(isActive: index == _activeIndex),
+                    ),
+                  ),
+                ),
+              ),
             ),
-          ),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Align(
                 alignment: Alignment.topLeft,
-                child: _CircleIconButton(icon: Icons.arrow_back, onTap: onBack),
+                child: _CircleIconButton(
+                  icon: Icons.arrow_back,
+                  onTap: widget.onBack,
+                ),
               ),
             ),
           ),
@@ -434,6 +490,18 @@ class _HeroSection extends StatelessWidget {
     );
   }
 
+  Widget _fallbackHeroImage() {
+    return Container(
+      color: const Color(0xFF3E0C7A),
+      alignment: Alignment.center,
+      child: Image.asset(
+        'assets/images/catlogo.png',
+        fit: BoxFit.contain,
+        width: 120,
+        height: 120,
+      ),
+    );
+  }
 }
 
 class _InfoCard extends StatelessWidget {
@@ -465,6 +533,7 @@ class _InfoCard extends StatelessWidget {
       descriptionText,
       pet.name,
     );
+    final healthLabel = pet.displayHealthLabel;
 
     return Container(
       decoration: BoxDecoration(
@@ -552,10 +621,9 @@ class _InfoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 14),
-            if (pet.healthStatus != null &&
-                pet.healthStatus!.trim().isNotEmpty) ...[
+            if (healthLabel != null) ...[
               Text(
-                pet.healthStatus!,
+                healthLabel,
                 style: const TextStyle(
                   color: _success,
                   fontSize: 15,
@@ -610,37 +678,6 @@ class _InfoCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _HeroImage extends StatelessWidget {
-  const _HeroImage({this.linkPicture});
-
-  final String? linkPicture;
-
-  @override
-  Widget build(BuildContext context) {
-    if (linkPicture != null && linkPicture!.isNotEmpty) {
-      return Image.network(
-        linkPicture!,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallbackHeroImage(),
-      );
-    }
-    return _fallbackHeroImage();
-  }
-
-  Widget _fallbackHeroImage() {
-    return Container(
-      color: const Color(0xFF3E0C7A),
-      alignment: Alignment.center,
-      child: Image.asset(
-        'assets/images/catlogo.png',
-        fit: BoxFit.contain,
-        width: 120,
-        height: 120,
       ),
     );
   }

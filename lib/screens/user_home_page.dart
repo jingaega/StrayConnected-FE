@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/pet_profile_page.dart';
@@ -78,7 +80,7 @@ class _UserHomePageState extends State<UserHomePage> {
       final data = await _supabase
           .from('animal')
           .select(
-            'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
+            'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, shelter_id, rescuer_id, link_picture',
           )
           .order('animal_id', ascending: false); // NEWEST FIRST
 
@@ -111,7 +113,7 @@ class _UserHomePageState extends State<UserHomePage> {
         base =
             _allPets
                 .where(
-                  (p) => (p.healthStatus ?? '').toLowerCase() == 'vaccinated',
+                  (p) => p.isVaccinatedConfirmed,
                 )
                 .toList();
         break;
@@ -159,7 +161,7 @@ class _UserHomePageState extends State<UserHomePage> {
         return _allPets.length;
       case PetFilter.vaccinated:
         return _allPets
-            .where((p) => (p.healthStatus ?? '').toLowerCase() == 'vaccinated')
+            .where((p) => p.isVaccinatedConfirmed)
             .length;
       case PetFilter.young:
         return _allPets.where((p) => p.age != null && p.age! <= 12).length;
@@ -565,10 +567,8 @@ class _PetCard extends StatelessWidget {
     ].join(' • ');
 
     final ageText = pet.age != null ? '${pet.age} months' : 'Age unknown';
-    final healthText =
-        (pet.healthStatus == null || pet.healthStatus!.isEmpty)
-            ? 'Health info not set'
-            : pet.healthStatus!;
+    final healthLabel = pet.displayHealthLabel;
+    final hasHealthLabel = healthLabel != null && healthLabel.isNotEmpty;
 
     return GestureDetector(
       onTap: () {
@@ -605,10 +605,10 @@ class _PetCard extends StatelessWidget {
                       height: 80,
                       color: const Color.fromARGB(255, 230, 230, 230),
                       child:
-                          (pet.linkPicture != null &&
-                                  pet.linkPicture!.isNotEmpty)
+                          (pet.primaryImageUrl != null &&
+                                  pet.primaryImageUrl!.isNotEmpty)
                               ? Image.network(
-                                pet.linkPicture!,
+                                pet.primaryImageUrl!,
                                 fit: BoxFit.cover,
                                 errorBuilder:
                                     (_, __, ___) => Image.asset(
@@ -673,23 +673,25 @@ class _PetCard extends StatelessWidget {
                                 color: Color(0xFF9586A8),
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            const Icon(
-                              Icons.favorite_outline,
-                              size: 16,
-                              color: Color(0xFF9586A8),
-                            ),
-                            const SizedBox(width: 4),
-                            Flexible(
-                              child: Text(
-                                healthText,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF9586A8),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                            if (hasHealthLabel) ...[
+                              const SizedBox(width: 12),
+                              const Icon(
+                                Icons.favorite_outline,
+                                size: 16,
+                                color: Color(0xFF9586A8),
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  healthLabel!,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF9586A8),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ],
@@ -735,6 +737,8 @@ class Pet {
   final String? species;
   final String? description;
   final String? healthStatus;
+  final String? knownDiseases;
+  final String? vaccinationCertificateUrl;
   final String? shelterId;
   final String? rescuerId;
   final String? linkPicture;
@@ -747,10 +751,40 @@ class Pet {
     this.species,
     this.description,
     this.healthStatus,
+    this.knownDiseases,
+    this.vaccinationCertificateUrl,
     this.shelterId,
     this.rescuerId,
     this.linkPicture,
   });
+
+  List<String> get imageUrls => _parseImageUrls(linkPicture);
+
+  String? get primaryImageUrl =>
+      imageUrls.isNotEmpty ? imageUrls.first : null;
+
+  bool get hasVaccinationCertificate =>
+      vaccinationCertificateUrl != null &&
+      vaccinationCertificateUrl!.trim().isNotEmpty;
+
+  bool get isVaccinatedConfirmed => hasVaccinationCertificate;
+
+  String? get displayHealthLabel {
+    final hasKnownDisease =
+        knownDiseases != null && knownDiseases!.trim().isNotEmpty;
+    final hasCertificate = hasVaccinationCertificate;
+
+    if (hasCertificate && !hasKnownDisease) {
+      return 'Vaccinated and Healthy';
+    }
+    if (hasCertificate && hasKnownDisease) {
+      return 'Vaccinated';
+    }
+    if (!hasCertificate && !hasKnownDisease) {
+      return 'Healthy';
+    }
+    return 'Health info pending';
+  }
 
   factory Pet.fromMap(Map<String, dynamic> map) {
     return Pet(
@@ -761,6 +795,9 @@ class Pet {
       species: map['species'] as String?,
       description: map['description'] as String?,
       healthStatus: map['health_status'] as String?,
+      knownDiseases: map['known_diseases'] as String?,
+      vaccinationCertificateUrl:
+          map['vaccination_certificate_url'] as String?,
       linkPicture: map['link_picture'] as String? ?? '',
       shelterId: map['shelter_id']?.toString(),
       rescuerId: map['rescuer_id']?.toString(),
@@ -774,4 +811,25 @@ class FilterOption {
   final int? count;
 
   const FilterOption({required this.type, required this.label, this.count});
+}
+
+List<String> _parseImageUrls(String? raw) {
+  if (raw == null) return [];
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return [];
+
+  if (trimmed.startsWith('[')) {
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is List) {
+        return decoded
+            .whereType<String>()
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  return [trimmed];
 }

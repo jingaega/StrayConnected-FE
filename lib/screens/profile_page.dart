@@ -130,25 +130,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         _SettingsCard(
                           children: [
                             _SettingsTile(
-                              icon: Icons.chat_bubble_outline,
-                              iconColor: const Color(0xFF2D0C57),
-                              title: 'Messages',
-                              subtitle: 'Open your rescue chats',
-                              onTap: () =>
-                                  Navigator.pushNamed(context, '/chats'),
-                            ),
-                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
-                            _SettingsTile(
-                              icon: Icons.event_available,
-                              iconColor: const Color(0xFF0BCE83),
-                              title: 'Meeting Requests',
-                              subtitle:
-                                  'Track your adoption meetings and statuses',
-                              onTap: () =>
-                                  Navigator.pushNamed(context, '/meetings'),
-                            ),
-                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
-                            _SettingsTile(
                               icon: Icons.pets,
                               iconColor: const Color(0xFFFFB04C),
                               title: 'My Animals',

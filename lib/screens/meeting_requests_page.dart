@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
@@ -282,13 +284,14 @@ class MeetingItem {
 
   factory MeetingItem.fromMap(Map<String, dynamic> map) {
     final animal = map['animal'] as Map?;
+    final imageUrls = _parseImageUrls(animal?['link_picture'] as String?);
     return MeetingItem(
       meetingId: map['meeting_id'] as int,
       status: (map['status'] as String?) ?? 'Pending',
       date: (map['date'] as String?) ?? '',
       time: (map['time'] as String?) ?? '',
       animalName: animal?['name'] as String?,
-      animalImage: animal?['link_picture'] as String?,
+      animalImage: imageUrls.isNotEmpty ? imageUrls.first : null,
       rescuerId: map['rescuer_id'] as String?,
       shelterId: map['shelter_id'] as String?,
       adopterId: map['adopter_id'] as String?,
@@ -685,4 +688,25 @@ class _AdopterRescheduleActions extends StatelessWidget {
       ],
     );
   }
+}
+
+List<String> _parseImageUrls(String? raw) {
+  if (raw == null) return [];
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return [];
+
+  if (trimmed.startsWith('[')) {
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is List) {
+        return decoded
+            .whereType<String>()
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+      }
+    } catch (_) {}
+  }
+
+  return [trimmed];
 }

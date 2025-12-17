@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
+import 'package:strayconnected/screens/update_health_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
@@ -259,54 +260,61 @@ class _AnimalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _stroke),
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => UpdateHealthPage(pet: pet)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(8),
-              topRight: Radius.circular(8),
-            ),
-            child: Container(
-              height: 140,
-              width: double.infinity,
-              color: Colors.grey.shade200,
-              child: (pet.linkPicture != null && pet.linkPicture!.isNotEmpty)
-                  ? Image.network(pet.linkPicture!, fit: BoxFit.cover)
-                  : const Icon(Icons.pets, size: 40, color: _muted),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-            child: Text(
-              pet.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _primary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _stroke),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+              child: Container(
+                height: 140,
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                child:
+                    (pet.primaryImageUrl != null &&
+                            pet.primaryImageUrl!.isNotEmpty)
+                        ? Image.network(pet.primaryImageUrl!, fit: BoxFit.cover)
+                        : const Icon(Icons.pets, size: 40, color: _muted),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-            child: Text(
-              'edit',
-              style: const TextStyle(
-                color: _muted,
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+              child: Text(
+                pet.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _primary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-        ],
+            const Padding(
+              padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Text(
+                'edit',
+                style: TextStyle(
+                  color: _muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

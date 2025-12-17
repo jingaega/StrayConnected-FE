@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/screens/meeting_confirmation_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
+import 'package:strayconnected/strayconnected.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
 const Color _primary = Color(0xFF2D0C57);
@@ -99,18 +101,26 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      await _supabase.from('adoption_meeting').insert(payload);
+      final created =
+          await _supabase
+              .from('adoption_meeting')
+              .insert(payload)
+              .select('meeting_id')
+              .single();
+      final meetingId = created['meeting_id'] as int;
       if (!mounted) return;
       setState(() => _isSubmitting = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Request sent for ${_dateCtrl.text} at ${_timeCtrl.text} ($_meetingType). The rescuer will contact you soon.',
-          ),
-          backgroundColor: _accent,
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder:
+              (_) => BackgroundWrapper(
+                child: MeetingConfirmationPage(
+                  onEdit: () => _handleEditRequest(meetingId),
+                  onConfirm: _handleConfirmRequest,
+                ),
+              ),
         ),
       );
-      Navigator.maybePop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSubmitting = false);
@@ -121,6 +131,23 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
         ),
       );
     }
+  }
+
+  Future<void> _handleEditRequest(int meetingId) async {
+    try {
+      await _supabase
+          .from('adoption_meeting')
+          .delete()
+          .eq('meeting_id', meetingId);
+    } catch (_) {
+      // Keep the form available even if delete fails.
+    }
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  void _handleConfirmRequest() {
+    Navigator.pushReplacementNamed(context, '/meetings');
   }
 
   Future<void> _pickDate() async {
@@ -551,8 +578,10 @@ class _HeroCard extends StatelessWidget {
         height: 240,
         decoration: BoxDecoration(
           image: DecorationImage(
-            image: (pet.linkPicture != null && pet.linkPicture!.isNotEmpty)
-                ? NetworkImage(pet.linkPicture!) as ImageProvider
+            image:
+                (pet.primaryImageUrl != null &&
+                        pet.primaryImageUrl!.isNotEmpty)
+                    ? NetworkImage(pet.primaryImageUrl!) as ImageProvider
                 : const AssetImage('assets/images/catlogo.png'),
             fit: BoxFit.cover,
           ),
