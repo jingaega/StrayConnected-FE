@@ -57,27 +57,28 @@
     Widget build(BuildContext context) {
       return Column(
         children: [
-          const SizedBox(height: 100),
+          const SizedBox(height: 20),
           // Logo
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(60),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color.fromRGBO(0, 0, 0, 0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(60),
-              child: Image.asset('assets/images/catlogo.png', fit: BoxFit.cover),
-            ),
+        Container(
+          width: 350,
+          height: 320,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(200),
+            boxShadow: [
+              BoxShadow(
+                color: const Color.fromRGBO(0, 0, 0, 0.15),
+                blurRadius: 4,
+                spreadRadius: -105,
+                offset: const Offset(-1, 20),
+              ),
+            ],
           ),
-          const SizedBox(height: 150),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(150),
+            child: Image.asset('assets/Images/LOGO.png', fit: BoxFit.contain),
+          ),
+        ),
+          const SizedBox(height: 0),
 
           // Main form container
           Expanded(
@@ -94,142 +95,159 @@
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 28),
                 child: Form(
                   key: _formKey,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              const SizedBox(height: 4),
-                              const Text(
-                                'StrayConnected',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2D0C57),
-                                ),
-                              ),
-                              const SizedBox(height: 28),
-
-                              // Email
-                              const Text(
-                                'Email',
-                                style:
-                                    TextStyle(fontSize: 16, color: Color(0xFF9586A8)),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildInput(
-                                controller: _emailController,
-                                hint: 'Enter your email',
-                                keyboardType: TextInputType.emailAddress,
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Password
-                              const Text(
-                                'Password',
-                                style:
-                                    TextStyle(fontSize: 16, color: Color(0xFF9586A8)),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildInput(
-                                controller: _passwordController,
-                                hint: 'Enter your password',
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility_off
-                                        : Icons.visibility,
-                                    color: const Color(0xFF9586A8),
-                                  ),
-                                  onPressed: () => setState(
-                                      () => _obscurePassword = !_obscurePassword),
-                                ),
-                              ),
-
-                              const SizedBox(height: 20),
-
-                              // Status line: slogan or error
-                              Center(
-                                child: Text(
-                                  _errorMessage ?? 'Bridging Hearts, Finding Homes.',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                    color: _errorMessage == null
-                                        ? const Color(0xFF9586A8)
-                                        : Colors.red,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-
-                              // Login button
-                              SizedBox(
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: _submit,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF0BCE83),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'LOGIN',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () => Navigator.pushReplacementNamed(
-                                        context, '/register'),
-                                    child: const Text(
-                                      'REGISTER',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF9586A8),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 24),
-                                  GestureDetector(
-                                    onTap: () {
-                                      // TODO: implement forgot password
-                                    },
-                                    child: const Text(
-                                      'FORGOT PASSWORD?',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Color(0xFF9586A8),
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 4),
+                      const Text(
+                        'StrayConnected',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF2D0C57),
                         ),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 28),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return SingleChildScrollView(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: constraints.maxHeight,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    // Email
+                                    const Text(
+                                      'Email',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Color(0xFF9586A8),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInput(
+                                      controller: _emailController,
+                                      hint: 'Enter your email',
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Password
+                                    const Text(
+                                      'Password',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Color(0xFF9586A8),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildInput(
+                                      controller: _passwordController,
+                                      hint: 'Enter your password',
+                                      obscureText: _obscurePassword,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword
+                                              ? Icons.visibility_off
+                                              : Icons.visibility,
+                                          color: const Color(0xFF9586A8),
+                                        ),
+                                        onPressed: () => setState(
+                                          () =>
+                                              _obscurePassword = !_obscurePassword,
+                                        ),
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 20),
+
+                                    // Status line: slogan or error
+                                    Center(
+                                      child: Text(
+                                        _errorMessage ??
+                                            'Bridging Hearts, Finding Homes.',
+                                        style: TextStyle(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w500,
+                                          color: _errorMessage == null
+                                              ? const Color(0xFF9586A8)
+                                              : Colors.red,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Login button
+                                    SizedBox(
+                                      height: 52,
+                                      child: ElevatedButton(
+                                        onPressed: _submit,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF0BCE83),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                        ),
+                                        child: const Text(
+                                          'LOGIN',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        GestureDetector(
+                                          onTap:
+                                              () => Navigator.pushReplacementNamed(
+                                                context,
+                                                '/register',
+                                              ),
+                                          child: const Text(
+                                            'REGISTER',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF9586A8),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 24),
+                                        GestureDetector(
+                                          onTap: () {
+                                            // TODO: implement forgot password
+                                          },
+                                          child: const Text(
+                                            'FORGOT PASSWORD?',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF9586A8),
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

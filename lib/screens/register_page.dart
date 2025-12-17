@@ -173,23 +173,24 @@ class _RegisterPageState extends State<RegisterPage> {
             const SizedBox(height: 28),
             // Logo
             Container(
-              width: 110,
-              height: 110,
+              width: 250,
+              height: 250,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(55),
+                borderRadius: BorderRadius.circular(100),
                 boxShadow: [
                   const BoxShadow(
-                    color: Color.fromRGBO(0, 0, 0, 0.25),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
+                    color: Color.fromRGBO(0, 0, 0, 0.15),
+                    blurRadius: 4,
+                    spreadRadius: -76,
+                    offset: Offset(0, 10),
                   ),
                 ],
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(55),
+                borderRadius: BorderRadius.circular(100),
                 child: Image.asset(
-                  'assets/images/catlogo.png',
-                  fit: BoxFit.cover,
+                  'assets/Images/LOGO.png',
+                  fit: BoxFit.contain,
                 ),
               ),
             ),
