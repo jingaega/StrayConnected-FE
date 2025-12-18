@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "675022820426",
+    "project_id": "strayconnected-2f0c7",
+    "storage_bucket": "strayconnected-2f0c7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:675022820426:android:999a7ccb98d12edd1802b3",
+        "android_client_info": {
+          "package_name": "com.example.strayconnected"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCabAMtQHXpwfOtsuZ-MYBzF5G8K2eCQQY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
