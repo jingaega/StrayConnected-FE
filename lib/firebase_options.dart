@@ -39,51 +39,20 @@ class DefaultFirebaseOptions {
         );
     }
   }
-
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCje7cVjduqucf97B-u2d8u8dKAVYipp20',
-    appId: '1:675022820426:web:811fe5058b3f35151802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    authDomain: 'strayconnected-2f0c7.firebaseapp.com',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    measurementId: 'G-J5FSPYY1Q1',
-  );
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCabAMtQHXpwfOtsuZ-MYBzF5G8K2eCQQY',
-    appId: '1:675022820426:android:999a7ccb98d12edd1802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
+    apiKey: 'ISI SENDIRI',
+    appId: 'ISI SENDIRI',
+    messagingSenderId: 'ISI SENDIRI',
+    projectId: 'ISI SENDIRI',
+    storageBucket: 'ISI SENDIRI',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCtlHhZpa07BZet93nELtqblNCL5amwEjw',
-    appId: '1:675022820426:ios:2c3339a62198ebb81802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    iosBundleId: 'com.example.strayconnected',
+    apiKey: 'ISI SENDIRI',
+    appId: 'ISI SENDIRI',
+    messagingSenderId: 'ISI SENDIRI',
+    projectId: 'ISI SENDIRI',
+    storageBucket: 'ISI SENDIRI',
+    iosBundleId: 'ISI SENDIRI',
   );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCtlHhZpa07BZet93nELtqblNCL5amwEjw',
-    appId: '1:675022820426:ios:2c3339a62198ebb81802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    iosBundleId: 'com.example.strayconnected',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCje7cVjduqucf97B-u2d8u8dKAVYipp20',
-    appId: '1:675022820426:web:3cd21ae4578fa4b81802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    authDomain: 'strayconnected-2f0c7.firebaseapp.com',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    measurementId: 'G-D97X180MJV',
-  );
-
 }
