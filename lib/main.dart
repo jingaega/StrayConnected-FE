@@ -17,9 +17,9 @@ Future<void> main() async {
 
   // Hardcoded Supabase keys (use only for local dev)
   await Supabase.initialize(
-    url: 'https://sgbignhkvycsvlkzqhwj.supabase.co',
+    url: 'ISI SENDIRI',
     anonKey:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNnYmlnbmhrdnljc3Zsa3pxaHdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODgxNTYsImV4cCI6MjA3NzU2NDE1Nn0.qB_3XbRG8WekutNmGPfyR0DNcp3D7rQbKVMAfnFxeY0',
+        'ISI SENDIRI',
   );
 
   await PushNotifications.initialize();
