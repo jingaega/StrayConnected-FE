@@ -41,7 +41,6 @@ import 'package:strayconnected/data/auth_repository.dart';
         final session = Supabase.instance.client.auth.currentSession;
         // Remove this print in production; only for debugging/token copy.
         // ignore: avoid_print
-        print('JWT (debug only): ${session?.accessToken}');
 
         if (mounted) {
           setState(() => _errorMessage = null);
