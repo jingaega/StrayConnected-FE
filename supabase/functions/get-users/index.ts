@@ -1,32 +1,82 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabaseUrl = Deno.env.get("PROJECT_URL")!;
-const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY")!;
+Deno.serve(async (req) => {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
 
-const supabase = createClient(supabaseUrl, serviceRoleKey);
+    if (!supabaseUrl || !supabaseAnonKey) {
+      return new Response(
+        JSON.stringify({
+          code: "MISSING_ENV",
+          message: "SUPABASE_URL or SUPABASE_ANON_KEY is not set",
+        }),
+        { status: 500, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-serve(async (req) => {
-  // auth
-  const authHeader = req.headers.get("Authorization");
-  const token = authHeader?.replace("Bearer ", "");
+    const authHeader = req.headers.get("Authorization") ?? "";
 
-  const { data: { user } } = await supabase.auth.getUser(token);
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({
+          code: "MISSING_BEARER",
+          message: "Missing or invalid Authorization header",
+        }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
 
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader },
+      },
+    });
+
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError) {
+      return new Response(
+        JSON.stringify({ code: "GET_USER_ERROR", message: userError.message }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ code: "UNAUTHORIZED", message: "User not found" }),
+        { status: 401, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // Only return this user's profile
+    const { data, error } = await supabase
+      .from("user")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      return new Response(
+        JSON.stringify({ code: "DB_ERROR", message: error.message }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    return new Response(
+      JSON.stringify({
+        code: "EXCEPTION",
+        message: e?.message ?? String(e),
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
-
-  // query data, ubah nama tabel di sini
-  const { data, error } = await supabase
-    .from("users")
-    .select("*");
-
-  if (error) {
-    return new Response(error.message, { status: 400 });
-  }
-
-  return new Response(JSON.stringify(data), {
-    headers: { "Content-Type": "application/json" },
-  });
 });

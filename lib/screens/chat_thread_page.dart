@@ -208,14 +208,17 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
       final bool hasShelter =
           widget.item.shelterId != null && widget.item.shelterId!.isNotEmpty;
 
+      bool includeShelter = false;
+      if (hasShelter) {
+        includeShelter = await _shelterExists(widget.item.shelterId!);
+      }
+
       final payload = <String, dynamic>{
         'message': text,
         'sender_id': uid,
         'receiver_id': widget.item.userId,
         if (hasRescuer) 'rescuer_id': widget.item.rescuerId,
-        if (hasShelter) 'shelter_id': widget.item.shelterId,
-        // Fallback to satisfy NOT NULL if neither provided
-        if (!hasRescuer && !hasShelter) 'shelter_id': widget.item.userId,
+        if (includeShelter) 'shelter_id': widget.item.shelterId,
       };
 
       final inserted =
@@ -244,6 +247,16 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
       );
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  Future<bool> _shelterExists(String id) async {
+    try {
+      final row =
+          await _supabase.from('shelter').select('shelter_id').eq('shelter_id', id).maybeSingle();
+      return row != null;
+    } catch (_) {
+      return false;
     }
   }
 

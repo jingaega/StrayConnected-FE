@@ -1,32 +1,68 @@
-import { serve } from "https://deno.land/std/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const supabaseUrl = Deno.env.get("PROJECT_URL")!;
-const serviceRoleKey = Deno.env.get("SERVICE_ROLE_KEY")!;
+Deno.serve(async (req) => {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL");
+  const supabaseAnon = Deno.env.get("SUPABASE_ANON_KEY");
 
-const supabase = createClient(supabaseUrl, serviceRoleKey);
-
-serve(async (req) => {
-  // auth
-  const authHeader = req.headers.get("Authorization");
-  const token = authHeader?.replace("Bearer ", "");
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
+  if (!supabaseUrl || !supabaseAnon) {
+    return new Response(
+      JSON.stringify({
+        code: "MISSING_ENV",
+        message: "SUPABASE_URL or SUPABASE_ANON_KEY is not set",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
 
-  // query data, ubah nama tabel di sini
-  const { data, error } = await supabase
-    .from("rescuer")
-    .select("*");
+  const authHeader = req.headers.get("Authorization") ?? "";
+
+  if (!authHeader.startsWith("Bearer ")) {
+    return new Response(
+      JSON.stringify({
+        code: "MISSING_BEARER",
+        message: "Missing or invalid Authorization header",
+      }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnon, {
+    global: {
+      headers: { Authorization: authHeader },
+    },
+  });
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return new Response(
+      JSON.stringify({ code: "UNAUTHORIZED", message: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // If you want only rescuers to see rescuer list, you could check role here:
+  // const { data: profile } = await supabase
+  //   .from("user")
+  //   .select("role")
+  //   .eq("id", user.id)
+  //   .maybeSingle();
+  // if (!profile || profile.role !== "rescuer") { ... }
+
+  const { data, error } = await supabase.from("rescuer").select("*");
 
   if (error) {
-    return new Response(error.message, { status: 400 });
+    return new Response(
+      JSON.stringify({ code: "DB_ERROR", message: error.message }),
+      { status: 400, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   return new Response(JSON.stringify(data), {
+    status: 200,
     headers: { "Content-Type": "application/json" },
   });
 });

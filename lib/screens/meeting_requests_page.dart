@@ -536,30 +536,43 @@ class _ModeratorActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (onChat != null)
           TextButton.icon(
             onPressed: onChat,
             icon: const Icon(Icons.chat_bubble_outline),
             label: const Text('Message'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+            ),
           ),
-        const Spacer(),
         TextButton(
           onPressed: busy ? null : onReject,
           child: const Text('Reject', style: TextStyle(color: _reject)),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+          ),
         ),
-        const SizedBox(width: 6),
         TextButton(
           onPressed: busy ? null : onReschedule,
           child: const Text('Reschedule'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+          ),
         ),
-        const SizedBox(width: 6),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: _accent,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
           onPressed: busy ? null : onAccept,
           child: busy
@@ -586,22 +599,35 @@ class _AdopterActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (onChat != null)
           TextButton.icon(
             onPressed: onChat,
             icon: const Icon(Icons.chat_bubble_outline),
             label: const Text('Message'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+            ),
           ),
-        const Spacer(),
-        TextButton(onPressed: onCancel, child: const Text('Cancel')),
-        const SizedBox(width: 6),
+        TextButton(
+          onPressed: onCancel,
+          child: const Text('Cancel'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+          ),
+        ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: _accent,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
           onPressed: onEdit,
           child: const Text('Edit request'),
@@ -618,25 +644,35 @@ class _AdopterAcceptedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         if (onChat != null)
           TextButton.icon(
             onPressed: onChat,
             icon: const Icon(Icons.chat_bubble_outline),
             label: const Text('Message'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+            ),
           ),
-        const Spacer(),
         TextButton(
           onPressed: onViewDetails,
           child: const Text('View details'),
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+          ),
         ),
-        const SizedBox(width: 6),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: _accent,
             foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
           onPressed: onViewDetails,
           child: const Text('Get directions'),
@@ -652,13 +688,17 @@ class _AdopterRejectedActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      alignment: WrapAlignment.end,
       children: [
-        const Spacer(),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: _info,
             foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
           onPressed: onReschedule,
           child: const Text('Request another time'),
@@ -674,13 +714,17 @@ class _AdopterRescheduleActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      alignment: WrapAlignment.end,
       children: [
-        const Spacer(),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
             backgroundColor: _info,
             foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
           onPressed: onReschedule,
           child: const Text('Pick a new time'),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
+import 'package:strayconnected/services/push_notifications.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -25,6 +26,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _loadProfile();
+    _loadNotificationPref();
   }
 
   Future<void> _loadProfile() async {
@@ -51,6 +53,42 @@ class _ProfilePageState extends State<ProfilePage> {
     await _auth.signOut();
     if (!mounted) return;
     Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
+  Future<void> _loadNotificationPref() async {
+    final enabled = await PushNotifications.isEnabled();
+    if (!mounted) return;
+    setState(() => _notificationsEnabled = enabled);
+  }
+
+  Future<void> _toggleNotifications(bool value) async {
+    final previous = _notificationsEnabled;
+    setState(() => _notificationsEnabled = value);
+    try {
+      await PushNotifications.setEnabled(value);
+      if (value) {
+        await PushNotifications.startRealtimeListener();
+      } else {
+        await PushNotifications.stopRealtimeListener();
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(value ? 'Notifications enabled' : 'Notifications disabled'),
+          backgroundColor: value ? const Color(0xFF5B30B5) : Colors.grey.shade700,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _notificationsEnabled = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update notifications: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   void _showComingSoon(String label) {
@@ -175,9 +213,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               title: 'Notifications',
                               subtitle: 'Stay updated on rescues & adoptions',
                               value: _notificationsEnabled,
-                              onChanged: (value) => setState(
-                                () => _notificationsEnabled = value,
-                              ),
+                              onChanged: _toggleNotifications,
                             ),
                           ],
                         ),

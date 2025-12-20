@@ -1,5 +1,6 @@
-  import 'package:flutter/material.dart';
-  import 'package:strayconnected/data/auth_repository.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/data/auth_repository.dart';
 
   class LoginPage extends StatefulWidget {
     const LoginPage({super.key});
@@ -35,6 +36,12 @@
 
       try {
         await _auth.signIn(email: email, password: password);
+
+        // Debug helper: log the current user's JWT after successful login.
+        final session = Supabase.instance.client.auth.currentSession;
+        // Remove this print in production; only for debugging/token copy.
+        // ignore: avoid_print
+        print('JWT (debug only): ${session?.accessToken}');
 
         if (mounted) {
           setState(() => _errorMessage = null);
@@ -73,11 +80,11 @@
               ),
             ],
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(150),
-            child: Image.asset('assets/Images/LOGO.png', fit: BoxFit.contain),
-          ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(150),
+          child: Image.asset('assets/images/LOGO.png', fit: BoxFit.contain),
         ),
+      ),
           const SizedBox(height: 0),
 
           // Main form container

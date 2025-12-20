@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
     measurementId: 'G-D97X180MJV',
   );
+
 }

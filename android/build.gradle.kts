@@ -16,6 +16,13 @@ subprojects {
      project.evaluationDependsOn(":app")
 }
 
+// Silence Java 8 source/target deprecation warnings emitted by some plugins
+subprojects {
+    tasks.withType<JavaCompile>().configureEach {
+        options.compilerArgs.add("-Xlint:-options")
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

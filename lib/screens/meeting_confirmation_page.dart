@@ -16,7 +16,7 @@ class MeetingConfirmationPage extends StatelessWidget {
       children: [
         const SizedBox(height: 56),
         Image.asset(
-          'assets/Images/LOGO.png',
+          'assets/images/LOGO.png',
           width: 500,
           height: 250,
           fit: BoxFit.contain,
@@ -59,7 +59,7 @@ class MeetingConfirmationPage extends StatelessWidget {
                       ),
                     ),
                     Image.asset(
-                      'assets/Images/check.png',
+                      'assets/images/check.png',
                       width: 117,
                       height: 117,
                       fit: BoxFit.contain,

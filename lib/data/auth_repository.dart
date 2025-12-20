@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/services/push_notifications.dart';
 
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
@@ -37,9 +38,14 @@ class AuthRepository {
     required String password,
   }) async {
     await _client.auth.signInWithPassword(email: email, password: password);
+    await PushNotifications.saveDeviceToken();
+    await PushNotifications.startRealtimeListener();
   }
 
-  Future<void> signOut() => _client.auth.signOut();
+  Future<void> signOut() async {
+    await PushNotifications.stopRealtimeListener();
+    await _client.auth.signOut();
+  }
 
   Future<Map<String, dynamic>?> getMyProfile() async {
     final uid = _client.auth.currentUser?.id;
