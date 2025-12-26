@@ -150,6 +150,8 @@ Deno.serve(async (req) => {
         inquiry_id,
         message,
         date,
+        edited_at,
+        deleted_at,
         sender_id,
         receiver_id,
         read_at,

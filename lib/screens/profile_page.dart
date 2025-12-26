@@ -167,24 +167,23 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         _SettingsCard(
                           children: [
-                            _SettingsTile(
-                              icon: Icons.pets,
-                              iconColor: const Color(0xFFFFB04C),
-                              title: 'My Animals',
-                              subtitle:
-                                  'View animals you listed as rescuer/shelter',
-                              onTap: () =>
-                                  Navigator.pushNamed(context, '/myAnimals'),
-                            ),
-                            const Divider(height: 1, color: Color(0xFFE4E2EE)),
-                            _SettingsTile(
-                              icon: Icons.place_outlined,
-                              iconColor: Colors.teal,
-                              title: 'Location',
-                              subtitle: 'View your map location',
-                              onTap: () =>
-                                  Navigator.pushNamed(context, '/location'),
-                            ),
+                        _SettingsTile(
+                          icon: Icons.place_outlined,
+                          iconColor: Colors.teal,
+                          title: 'Location',
+                          subtitle: 'View your map location',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/location'),
+                        ),
+                        const Divider(height: 1, color: Color(0xFFE4E2EE)),
+                        _SettingsTile(
+                          icon: Icons.badge_outlined,
+                          iconColor: const Color(0xFF5B30B5),
+                          title: 'Shelter Profile',
+                          subtitle: 'View shelter info',
+                          onTap: () =>
+                              Navigator.pushNamed(context, '/shelterProfile'),
+                        ),
                           ],
                         ),
                         const SizedBox(height: 16),

@@ -144,7 +144,7 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
           await client.from('user').select('role').eq('id', uid).maybeSingle();
       final role = data?['role'] as String?;
       setState(() {
-        _canCreate = role == 'rescuer' || role == 'shelter';
+        _canCreate = role == 'rescuer' || role == 'shelter' || role == 'admin';
       });
     } catch (_) {
       setState(() => _canCreate = false);

@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
-import 'package:strayconnected/screens/location_picker_page.dart';
-import 'package:geolocator/geolocator.dart';
 
 const Color _muted = Color(0xFF9586A8);
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({super.key});
+  const RegisterPage({super.key, this.presetRole, this.lockRole = false});
+
+  final String? presetRole;
+  final bool lockRole;
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  static const Set<String> _allowedRoles = {'adopter', 'rescuer', 'shelter'};
   // ===== Form + Controllers =====
   String cleanEmail(String input) {
   return input
@@ -28,13 +30,19 @@ class _RegisterPageState extends State<RegisterPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
-  String? _pickedAddress;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _agree = false;
   String _selectedRole = 'adopter'; // adopter, rescuer, shelter
-  double? _lat;
-  double? _lng;
+
+  @override
+  void initState() {
+    super.initState();
+    final preset = widget.presetRole?.trim().toLowerCase();
+    if (preset != null && _allowedRoles.contains(preset)) {
+      _selectedRole = preset;
+    }
+  }
 
   @override
   void dispose() {
@@ -53,51 +61,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  Future<void> _useCurrentLocation() async {
-    try {
-      final perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location permission denied'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-      );
-      setState(() {
-        _lat = pos.latitude;
-        _lng = pos.longitude;
-        _pickedAddress = 'Current location';
-      });
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not get location: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _pickOnMap() async {
-    final result = await Navigator.push<PickedLocation>(
-      context,
-      MaterialPageRoute(builder: (_) => const LocationPickerPage()),
-    );
-    if (result != null) {
-      setState(() {
-        _lat = result.latitude;
-        _lng = result.longitude;
-        _pickedAddress = result.address;
-      });
-    }
-  }
-
   // ===== Submit =====
   Future<void> _submit() async {
     final ok = _formKey.currentState?.validate() ?? false;
@@ -114,29 +77,25 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
-      double? lat;
-      double? lng;
-      if (_selectedRole != 'adopter') {
-        if (_lat == null || _lng == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please set your location via map or GPS.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-        lat = _lat;
-        lng = _lng;
+      if (_selectedRole == 'shelter') {
+        Navigator.pushReplacementNamed(
+          context,
+          '/manageShelter',
+          arguments: {
+            'email': cleanEmail(_emailController.text),
+            'password': _passwordController.text.trim(),
+          },
+        );
+        return;
       }
 
       await _auth.signUp(
         email: cleanEmail(_emailController.text), // <- use cleaned email
         password: _passwordController.text.trim(),
         name: _usernameController.text.trim(),
-        role: _selectedRole,
-        latitude: lat,
-        longitude: lng,
+        role: _allowedRoles.contains(_selectedRole)
+            ? _selectedRole
+            : 'adopter',
       );
 
       if (mounted) {
@@ -146,7 +105,11 @@ class _RegisterPageState extends State<RegisterPage> {
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.pushReplacementNamed(context, '/login');
+        if (_selectedRole == 'shelter') {
+          Navigator.pushReplacementNamed(context, '/manageShelter');
+        } else {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -170,6 +133,22 @@ class _RegisterPageState extends State<RegisterPage> {
         constraints: BoxConstraints(minHeight: height),
         child: Column(
           children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: () => Navigator.pushReplacementNamed(
+                    context,
+                    '/registerRole',
+                  ),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
             const SizedBox(height: 28),
             // Logo
             Container(
@@ -195,13 +174,15 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Create your account',
-              style: TextStyle(
+            Text(
+              widget.lockRole
+                  ? 'Create shelter account'
+                  : 'Create your account',
+              style: const TextStyle(
                 color: Colors.white,
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
+                letterSpacing: 0.2,
               ),
             ),
             const SizedBox(height: 22),
@@ -235,25 +216,26 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 26),
 
-                      // Username
-                      const Text('Username',
-                          style:
-                              TextStyle(fontSize: 16, color: Color(0xFF9586A8))),
-                      const SizedBox(height: 8),
-                      _buildInput(
-                        controller: _usernameController,
-                        hint: 'Choose a username',
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Please enter a username';
-                          }
-                          if (v.trim().length < 3) {
-                            return 'Username must be at least 3 characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 18),
+                      if (!widget.lockRole) ...[
+                        const Text('Username',
+                            style: TextStyle(
+                                fontSize: 16, color: Color(0xFF9586A8))),
+                        const SizedBox(height: 8),
+                        _buildInput(
+                          controller: _usernameController,
+                          hint: 'Choose a username',
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Please enter a username';
+                            }
+                            if (v.trim().length < 3) {
+                              return 'Username must be at least 3 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                      ],
 
                       // Email
                       const Text('Email',
@@ -331,92 +313,54 @@ class _RegisterPageState extends State<RegisterPage> {
 
                       const SizedBox(height: 18),
 
-                      // Role dropdown
+                      // Account type
                       const Text('Account Type',
                           style:
                               TextStyle(fontSize: 16, color: Color(0xFF9586A8))),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        value: _selectedRole,
-                        decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFD9D0E3)),
-                          ),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                              value: 'adopter', child: Text('Adopter')),
-                          DropdownMenuItem(
-                              value: 'rescuer',
-                              child: Text('Rescuer (can post animals)')),
-                          DropdownMenuItem(
-                              value: 'shelter',
-                              child: Text('Shelter (organization)')),
-                        ],
-                        onChanged: (val) {
-                          setState(() => _selectedRole = val ?? 'adopter');
-                        },
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      if (_selectedRole != 'adopter') ...[
-                        const Text(
-                          'Location (for rescuer/shelter)',
-                          style: TextStyle(fontSize: 16, color: Color(0xFF9586A8)),
-                        ),
-                        const SizedBox(height: 8),
+                      if (widget.lockRole)
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Color(0xFFD9D0E3)),
+                            border: Border.all(color: const Color(0xFFD9D0E3)),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _pickedAddress ?? 'No location selected',
-                                style: const TextStyle(
-                                    color: Color(0xFF2D0C57),
-                                    fontWeight: FontWeight.w600),
-                              ),
-                              if (_lat != null && _lng != null)
-                                Text(
-                                  'Lat: ${_lat!.toStringAsFixed(5)}, Lng: ${_lng!.toStringAsFixed(5)}',
-                                  style:
-                                      const TextStyle(color: _muted, fontSize: 12),
-                                ),
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      icon: const Icon(Icons.my_location),
-                                      onPressed: _useCurrentLocation,
-                                      label: const Text('Use my location'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      icon: const Icon(Icons.map_outlined),
-                                      onPressed: _pickOnMap,
-                                      label: const Text('Pick on map'),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          child: const Text(
+                            'Shelter (organization)',
+                            style: TextStyle(
+                              color: Color(0xFF2D0C57),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                        )
+                      else
+                        DropdownButtonFormField<String>(
+                          initialValue: _selectedRole,
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: Color(0xFFD9D0E3)),
+                            ),
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'adopter', child: Text('Adopter')),
+                            DropdownMenuItem(
+                                value: 'rescuer',
+                                child: Text('Rescuer (can post animals)')),
+                          ],
+                          onChanged: (val) {
+                            setState(() => _selectedRole = val ?? 'adopter');
+                          },
                         ),
-                        const SizedBox(height: 16),
-                      ],
+
+                      const SizedBox(height: 16),
 
                       // Terms
                       Row(
@@ -453,9 +397,11 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: const Text(
-                            'CREATE ACCOUNT',
-                            style: TextStyle(
+                          child: Text(
+                            widget.lockRole
+                                ? 'CREATE & SETUP SHELTER'
+                                : 'CREATE ACCOUNT',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: Colors.white,

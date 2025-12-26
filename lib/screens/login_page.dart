@@ -41,16 +41,19 @@ import 'package:strayconnected/data/auth_repository.dart';
         final session = Supabase.instance.client.auth.currentSession;
         // Remove this print in production; only for debugging/token copy.
         // ignore: avoid_print
-        print('JWT (debug only): ${session?.accessToken}');
+        //print('JWT (debug only): ${session?.accessToken}');
 
-        if (mounted) {
-          setState(() => _errorMessage = null);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful!'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          if (mounted) {
+            setState(() => _errorMessage = null);
+            final messenger = ScaffoldMessenger.of(context);
+            messenger.hideCurrentSnackBar();
+            messenger.showSnackBar(
+              const SnackBar(
+                content: Text('Login successful!'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 1),
+              ),
+            );
 
           if (!mounted) return;
           Navigator.pushReplacementNamed(context, '/home');
@@ -217,10 +220,10 @@ import 'package:strayconnected/data/auth_repository.dart';
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
                                         GestureDetector(
-                                          onTap:
-                                              () => Navigator.pushReplacementNamed(
+                                          onTap: () =>
+                                              Navigator.pushReplacementNamed(
                                                 context,
-                                                '/register',
+                                                '/registerRole',
                                               ),
                                           child: const Text(
                                             'REGISTER',

@@ -3,8 +3,13 @@ import 'package:strayconnected/services/push_notifications.dart';
 
 class AuthRepository {
   final SupabaseClient _client = Supabase.instance.client;
+  static const Set<String> _selfServiceRoles = {
+    'adopter',
+    'rescuer',
+    'shelter',
+  };
 
-  Future<void> signUp({
+  Future<String> signUp({
     required String email,
     required String password,
     required String name,
@@ -12,7 +17,16 @@ class AuthRepository {
     double? latitude,
     double? longitude,
   }) async {
-    final res = await _client.auth.signUp(email: email, password: password);
+    final normalizedRole = role.trim().toLowerCase();
+    if (!_selfServiceRoles.contains(normalizedRole)) {
+      throw Exception('Role not allowed for self sign-up');
+    }
+
+    final res = await _client.auth.signUp(
+      email: email,
+      password: password,
+      data: {'name': name, 'role': normalizedRole},
+    );
     final user = res.user;
 
     if (user == null) {
@@ -25,12 +39,14 @@ class AuthRepository {
         'id': user.id,
         'email': email,
         'name': name,
-        'role': role,
+        'role': normalizedRole,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
       },
       onConflict: 'id',
     );
+
+    return user.id;
   }
 
   Future<void> signIn({
@@ -59,7 +75,13 @@ class AuthRepository {
 
     final payload = <String, dynamic>{};
     if (name != null) payload['name'] = name;
-    if (role != null) payload['role'] = role;
+    if (role != null) {
+      final normalizedRole = role.trim().toLowerCase();
+      if (!_selfServiceRoles.contains(normalizedRole)) {
+        throw Exception('Role change not permitted');
+      }
+      payload['role'] = normalizedRole;
+    }
 
     if (payload.isEmpty) return;
     await _client.from('user').update(payload).eq('id', uid);

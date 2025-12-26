@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:strayconnected/screens/login_page.dart';
+import 'package:strayconnected/screens/register_role_page.dart';
 import 'package:strayconnected/screens/register_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/screens/create_animal_page.dart';
@@ -7,10 +8,13 @@ import 'package:strayconnected/screens/chat_list_page.dart';
 import 'package:strayconnected/screens/chat_thread_page.dart';
 import 'package:strayconnected/models/chat_preview_item.dart';
 import 'package:strayconnected/screens/manage_shelter_page.dart';
+import 'package:strayconnected/screens/shelter_profile_page.dart';
+import 'package:strayconnected/screens/shelter_profile_edit_page.dart';
 import 'package:strayconnected/screens/profile_page.dart';
 import 'package:strayconnected/screens/meeting_requests_page.dart';
 import 'package:strayconnected/screens/my_animals_page.dart';
 import 'package:strayconnected/screens/location_page.dart';
+import 'package:strayconnected/screens/admin_page.dart';
 
 class StrayConnectedApp extends StatelessWidget {
   const StrayConnectedApp({super.key});
@@ -27,7 +31,23 @@ class StrayConnectedApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (_) => const BackgroundWrapper(child: LoginPage()),
-        '/register': (_) => const BackgroundWrapper(child: RegisterPage()),
+        '/register': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          String? presetRole;
+          bool lockRole = false;
+          if (args is Map<String, dynamic>) {
+            presetRole = args['presetRole'] as String?;
+            lockRole = args['lockRole'] == true;
+          }
+          return BackgroundWrapper(
+            child: RegisterPage(
+              presetRole: presetRole,
+              lockRole: lockRole,
+            ),
+          );
+        },
+        '/registerRole':
+            (_) => const BackgroundWrapper(child: RegisterRolePage()),
         '/home': (_) => const BackgroundWrapper(child: UserHomePage()),
         '/createAnimal':
             (_) => const BackgroundWrapper(child: CreateAnimalPage()),
@@ -51,8 +71,20 @@ class StrayConnectedApp extends StatelessWidget {
                   );
           return ChatThreadPage(item: item);
         },
-        '/manageShelter':
-            (_) => const BackgroundWrapper(child: ManageShelterPage()),
+        '/manageShelter': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments;
+          return BackgroundWrapper(
+            child: ManageShelterPage(
+              pendingRegistration:
+                  args is Map<String, dynamic> ? args : null,
+            ),
+          );
+        },
+        '/shelterProfile':
+            (_) => const BackgroundWrapper(child: ShelterProfilePage()),
+        '/shelterProfileEdit':
+            (_) => const BackgroundWrapper(child: ShelterProfileEditPage()),
+        '/admin': (_) => const BackgroundWrapper(child: AdminPage()),
       },
       onUnknownRoute:
           (settings) => MaterialPageRoute(

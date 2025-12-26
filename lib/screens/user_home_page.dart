@@ -43,7 +43,7 @@ class _UserHomePageState extends State<UserHomePage> {
   }
 
   bool get _canCreate =>
-      _role == 'rescuer' || _role == 'shelter'; // support legacy shelter role
+      _role == 'rescuer' || _role == 'shelter' || _role == 'admin'; // support legacy shelter role
 
   Future<void> _loadRole() async {
     final uid = _supabase.auth.currentUser?.id;
@@ -683,7 +683,7 @@ class _PetCard extends StatelessWidget {
                               const SizedBox(width: 4),
                               Flexible(
                                 child: Text(
-                                  healthLabel!,
+                                  healthLabel,
                                   style: const TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF9586A8),

@@ -74,7 +74,7 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
           p.locality,
           p.administrativeArea,
           p.country
-        ].where((e) => e != null && e!.trim().isNotEmpty).join(', ');
+        ].where((e) => e != null && e.trim().isNotEmpty).join(', ');
         setState(() => _address = line.isNotEmpty ? line : 'Unnamed place');
       } else {
         setState(() => _address = 'Unnamed place');

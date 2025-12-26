@@ -6,7 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/screens/update_health_page.dart';
-import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
 const Color _primary = Color(0xFF3F0C7A);
@@ -44,7 +43,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   String _selectedSpecies = 'Cat';
   String _selectedBreed = 'Calico';
   int _selectedAge = 3;
-  String? _role; // adopter | rescuer | shelter
+  String? _role; // adopter | rescuer | shelter | admin
   final List<XFile> _selectedImages = [];
   final List<Uint8List> _selectedImageBytes = [];
   HealthDraft? _healthDraft;
@@ -79,10 +78,10 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
       );
       return;
     }
-    if (_role != 'rescuer' && _role != 'shelter') {
+    if (_role != 'rescuer' && _role != 'shelter' && _role != 'admin') {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Only rescuers or shelters can add animals.'),
+          content: Text('Only rescuers, shelters, or admins can add animals.'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -121,6 +120,9 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
       if (_role == 'rescuer') {
         payload['rescuer_id'] = userId;
       } else if (_role == 'shelter') {
+        payload['shelter_id'] = userId;
+      } else if (_role == 'admin') {
+        // Default admin-owned listings go under shelter_id for visibility
         payload['shelter_id'] = userId;
       }
 
@@ -529,22 +531,6 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                   ),
                 ),
               ],
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: RoleAwareBottomNav(
-              onCreateAllowed: _submit,
-              onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-              onMessages: () =>
-                  Navigator.pushReplacementNamed(context, '/chats'),
-              onMeetings: () =>
-                  Navigator.pushReplacementNamed(context, '/meetings'),
-              onProfile: () =>
-                  Navigator.pushReplacementNamed(context, '/profile'),
-              activeTab: BottomNavTab.home,
             ),
           ),
         ],

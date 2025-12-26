@@ -209,7 +209,7 @@ class PushNotifications {
                   .from('user')
                   .select('name')
                   .eq('id', sender)
-                  .maybeSingle() as Map<String, dynamic>?;
+                  .maybeSingle();
               senderName = (profile?['name'] as String?) ?? '';
             } catch (_) {
               senderName = '';

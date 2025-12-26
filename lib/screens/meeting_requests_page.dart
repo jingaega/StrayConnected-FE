@@ -553,19 +553,19 @@ class _ModeratorActions extends StatelessWidget {
           ),
         TextButton(
           onPressed: busy ? null : onReject,
-          child: const Text('Reject', style: TextStyle(color: _reject)),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
+          child: const Text('Reject', style: TextStyle(color: _reject)),
         ),
         TextButton(
           onPressed: busy ? null : onReschedule,
-          child: const Text('Reschedule'),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
+          child: const Text('Reschedule'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -616,11 +616,11 @@ class _AdopterActions extends StatelessWidget {
           ),
         TextButton(
           onPressed: onCancel,
-          child: const Text('Cancel'),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
+          child: const Text('Cancel'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(
@@ -661,11 +661,11 @@ class _AdopterAcceptedActions extends StatelessWidget {
           ),
         TextButton(
           onPressed: onViewDetails,
-          child: const Text('View details'),
           style: TextButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
           ),
+          child: const Text('View details'),
         ),
         ElevatedButton(
           style: ElevatedButton.styleFrom(

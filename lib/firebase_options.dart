@@ -2,7 +2,7 @@
 // ignore_for_file: type=lint
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, TargetPlatform;
 
 /// Default [FirebaseOptions] for use with your Firebase apps.
 ///
@@ -16,39 +16,23 @@ import 'package:flutter/foundation.dart'
 /// ```
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
-    }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
         return ios;
-      case TargetPlatform.macOS:
-        return macos;
-      case TargetPlatform.windows:
-        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
+          'DefaultFirebaseOptions have not been configured for linux.',
         );
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
         );
     }
   }
-
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyCje7cVjduqucf97B-u2d8u8dKAVYipp20',
-    appId: '1:675022820426:web:811fe5058b3f35151802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    authDomain: 'strayconnected-2f0c7.firebaseapp.com',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    measurementId: 'G-J5FSPYY1Q1',
-  );
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCabAMtQHXpwfOtsuZ-MYBzF5G8K2eCQQY',
@@ -65,25 +49,6 @@ class DefaultFirebaseOptions {
     projectId: 'strayconnected-2f0c7',
     storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
     iosBundleId: 'com.example.strayconnected',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCtlHhZpa07BZet93nELtqblNCL5amwEjw',
-    appId: '1:675022820426:ios:2c3339a62198ebb81802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    iosBundleId: 'com.example.strayconnected',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCje7cVjduqucf97B-u2d8u8dKAVYipp20',
-    appId: '1:675022820426:web:3cd21ae4578fa4b81802b3',
-    messagingSenderId: '675022820426',
-    projectId: 'strayconnected-2f0c7',
-    authDomain: 'strayconnected-2f0c7.firebaseapp.com',
-    storageBucket: 'strayconnected-2f0c7.firebasestorage.app',
-    measurementId: 'G-D97X180MJV',
   );
 
 }
