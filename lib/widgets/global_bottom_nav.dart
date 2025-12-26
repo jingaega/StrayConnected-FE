@@ -110,6 +110,7 @@ class RoleAwareBottomNav extends StatefulWidget {
     required this.onMessages,
     required this.onMeetings,
     required this.onProfile,
+    this.onShelterProfile,
   });
 
   final BottomNavTab activeTab;
@@ -118,6 +119,7 @@ class RoleAwareBottomNav extends StatefulWidget {
   final VoidCallback onMessages;
   final VoidCallback onMeetings;
   final VoidCallback onProfile;
+  final VoidCallback? onShelterProfile;
 
   @override
   State<RoleAwareBottomNav> createState() => _RoleAwareBottomNavState();
@@ -125,6 +127,7 @@ class RoleAwareBottomNav extends StatefulWidget {
 
 class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
   bool _canCreate = false;
+  String? _role;
 
   @override
   void initState() {
@@ -144,6 +147,7 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
           await client.from('user').select('role').eq('id', uid).maybeSingle();
       final role = data?['role'] as String?;
       setState(() {
+        _role = role;
         _canCreate = role == 'rescuer' || role == 'shelter' || role == 'admin';
       });
     } catch (_) {
@@ -153,13 +157,16 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
 
   @override
   Widget build(BuildContext context) {
+    final onProfile = (_role == 'shelter' && widget.onShelterProfile != null)
+        ? widget.onShelterProfile!
+        : widget.onProfile;
     return GlobalBottomNav(
       canCreate: _canCreate,
       onCreate: _canCreate ? widget.onCreateAllowed : () {},
       onHome: widget.onHome,
       onMessages: widget.onMessages,
       onMeetings: widget.onMeetings,
-      onProfile: widget.onProfile,
+      onProfile: onProfile,
       activeTab: widget.activeTab,
     );
   }

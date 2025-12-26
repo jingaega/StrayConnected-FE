@@ -121,6 +121,8 @@ class _LocationPageState extends State<LocationPage> {
                 onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
                 onMeetings: () => Navigator.pushReplacementNamed(context, '/meetings'),
                 onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+                onShelterProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.profile,
               ),
             ),

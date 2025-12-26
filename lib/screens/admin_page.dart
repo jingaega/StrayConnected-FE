@@ -342,9 +342,8 @@ class _AdminPageState extends State<AdminPage> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: GlobalBottomNav(
-                canCreate: true, // admin can create
-                onCreate: () => Navigator.pushNamed(context, '/createAnimal'),
+              child: RoleAwareBottomNav(
+                onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
                 onHome: () => Navigator.pushReplacementNamed(context, '/home'),
                 onMessages: () =>
                     Navigator.pushReplacementNamed(context, '/chats'),
@@ -352,6 +351,8 @@ class _AdminPageState extends State<AdminPage> {
                     Navigator.pushReplacementNamed(context, '/meetings'),
                 onProfile: () =>
                     Navigator.pushReplacementNamed(context, '/profile'),
+                onShelterProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.profile,
               ),
             ),

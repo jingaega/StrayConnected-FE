@@ -11,7 +11,7 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  static const _bgColor = Colors.white;
+  static const _bgColor = Color.fromARGB(255, 246, 245, 245);
   static const _subtitleColor = Color(0xFF9586A8);
 
   final AuthRepository _auth = AuthRepository();
@@ -167,23 +167,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       children: [
                         _SettingsCard(
                           children: [
-                        _SettingsTile(
-                          icon: Icons.place_outlined,
-                          iconColor: Colors.teal,
-                          title: 'Location',
-                          subtitle: 'View your map location',
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/location'),
-                        ),
-                        const Divider(height: 1, color: Color(0xFFE4E2EE)),
-                        _SettingsTile(
-                          icon: Icons.badge_outlined,
-                          iconColor: const Color(0xFF5B30B5),
-                          title: 'Shelter Profile',
-                          subtitle: 'View shelter info',
-                          onTap: () =>
-                              Navigator.pushNamed(context, '/shelterProfile'),
-                        ),
+                            _SettingsTile(
+                              icon: Icons.place_outlined,
+                              iconColor: Colors.teal,
+                              title: 'Location',
+                              subtitle: 'View your map location',
+                              onTap: () =>
+                                  Navigator.pushNamed(context, '/location'),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -239,16 +230,16 @@ class _ProfilePageState extends State<ProfilePage> {
             left: 0,
             right: 0,
             bottom: 0,
-            child: GlobalBottomNav(
-              canCreate: (_profile?['role'] == 'rescuer') ||
-                  (_profile?['role'] == 'shelter'),
-              onCreate: () => Navigator.pushNamed(context, '/createAnimal'),
+            child: RoleAwareBottomNav(
+              onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
               onHome: () => Navigator.pushReplacementNamed(context, '/home'),
               onMessages: () =>
                   Navigator.pushReplacementNamed(context, '/chats'),
               onMeetings: () =>
                   Navigator.pushReplacementNamed(context, '/meetings'),
               onProfile: () {},
+              onShelterProfile: () =>
+                  Navigator.pushReplacementNamed(context, '/shelterProfile'),
               activeTab: BottomNavTab.profile,
             ),
           ),

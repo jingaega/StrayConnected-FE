@@ -48,14 +48,13 @@ class StrayConnectedApp extends StatelessWidget {
         },
         '/registerRole':
             (_) => const BackgroundWrapper(child: RegisterRolePage()),
-        '/home': (_) => const BackgroundWrapper(child: UserHomePage()),
-        '/createAnimal':
-            (_) => const BackgroundWrapper(child: CreateAnimalPage()),
-        '/chats': (_) => const BackgroundWrapper(child: ChatListPage()),
-        '/profile': (_) => const BackgroundWrapper(child: ProfilePage()),
-        '/meetings': (_) => const BackgroundWrapper(child: MeetingRequestsPage()),
-        '/myAnimals': (_) => const BackgroundWrapper(child: MyAnimalsPage()),
-        '/location': (_) => const BackgroundWrapper(child: LocationPage()),
+        '/home': (_) => const PlainWrapper(child: UserHomePage()),
+        '/createAnimal': (_) => const PlainWrapper(child: CreateAnimalPage()),
+        '/chats': (_) => const PlainWrapper(child: ChatListPage()),
+        '/profile': (_) => const ProfileWrapper(child: ProfilePage()),
+        '/meetings': (_) => const PlainWrapper(child: MeetingRequestsPage()),
+        '/myAnimals': (_) => const PlainWrapper(child: MyAnimalsPage()),
+        '/location': (_) => const PlainWrapper(child: LocationPage()),
         '/chatThread': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           final item =
@@ -69,11 +68,11 @@ class StrayConnectedApp extends StatelessWidget {
                     unreadCount: 0,
                     avatarUrl: 'https://placehold.co/42x42',
                   );
-          return ChatThreadPage(item: item);
+          return PlainWrapper(child: ChatThreadPage(item: item));
         },
         '/manageShelter': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
-          return BackgroundWrapper(
+          return PlainWrapper(
             child: ManageShelterPage(
               pendingRegistration:
                   args is Map<String, dynamic> ? args : null,
@@ -81,10 +80,10 @@ class StrayConnectedApp extends StatelessWidget {
           );
         },
         '/shelterProfile':
-            (_) => const BackgroundWrapper(child: ShelterProfilePage()),
+            (_) => const PlainWrapper(child: ShelterProfilePage()),
         '/shelterProfileEdit':
-            (_) => const BackgroundWrapper(child: ShelterProfileEditPage()),
-        '/admin': (_) => const BackgroundWrapper(child: AdminPage()),
+            (_) => const PlainWrapper(child: ShelterProfileEditPage()),
+        '/admin': (_) => const PlainWrapper(child: AdminPage()),
       },
       onUnknownRoute:
           (settings) => MaterialPageRoute(
@@ -108,6 +107,40 @@ class BackgroundWrapper extends StatelessWidget {
           Container(color: const Color.fromRGBO(0, 0, 0, 0.15)),
           SafeArea(child: child),
         ],
+      ),
+    );
+  }
+}
+
+class PlainWrapper extends StatelessWidget {
+  final Widget child;
+  const PlainWrapper({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color.fromARGB(255, 246, 245, 245);
+    return ColoredBox(
+      color: bg,
+      child: Material(
+        color: bg,
+        child: SafeArea(child: child),
+      ),
+    );
+  }
+}
+
+class ProfileWrapper extends StatelessWidget {
+  final Widget child;
+  const ProfileWrapper({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color.fromARGB(255, 246, 245, 245);
+    return ColoredBox(
+      color: bg,
+      child: Material(
+        color: bg,
+        child: SafeArea(child: child),
       ),
     );
   }

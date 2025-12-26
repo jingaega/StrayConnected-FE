@@ -204,6 +204,8 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
                 onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
                 onMeetings: () => Navigator.pushReplacementNamed(context, '/meetings'),
                 onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+                onShelterProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.meetings,
               ),
             ),

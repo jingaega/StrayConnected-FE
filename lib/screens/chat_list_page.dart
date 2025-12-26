@@ -219,6 +219,8 @@ class _ChatListPageState extends State<ChatListPage> {
                 Navigator.pushReplacementNamed(context, '/meetings'),
             onProfile: () =>
                 Navigator.pushReplacementNamed(context, '/profile'),
+            onShelterProfile: () =>
+                Navigator.pushReplacementNamed(context, '/shelterProfile'),
             activeTab: BottomNavTab.messages,
           ),
         ),

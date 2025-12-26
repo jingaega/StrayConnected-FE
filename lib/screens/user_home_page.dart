@@ -442,16 +442,17 @@ class _UserHomePageState extends State<UserHomePage> {
           left: 0,
           right: 0,
           bottom: 0,
-          child: GlobalBottomNav(
-            canCreate: _canCreate,
-            onCreate: _handleCreate,
+          child: RoleAwareBottomNav(
+            activeTab: BottomNavTab.home,
+            onCreateAllowed: _handleCreate,
             onHome: () {},
             onMessages: () =>
                 Navigator.pushReplacementNamed(context, '/chats'),
             onMeetings: () =>
                 Navigator.pushReplacementNamed(context, '/meetings'),
             onProfile: () => Navigator.pushNamed(context, '/profile'),
-            activeTab: BottomNavTab.home,
+            onShelterProfile: () =>
+                Navigator.pushNamed(context, '/shelterProfile'),
           ),
         ),
       ],

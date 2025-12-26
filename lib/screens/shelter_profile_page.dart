@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
 import 'package:strayconnected/screens/update_health_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
+import 'package:strayconnected/widgets/global_bottom_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ShelterProfilePage extends StatefulWidget {
@@ -11,13 +12,12 @@ class ShelterProfilePage extends StatefulWidget {
   State<ShelterProfilePage> createState() => _ShelterProfilePageState();
 }
 
-const Color _shelterProfileBg = Colors.white;
+const Color _shelterProfileBg = Color.fromARGB(255, 246, 245, 245);
 const Color _shelterProfileCard = Color(0xFFF6F5F9);
 const Color _shelterProfileMuted = Color(0xFF7C7693);
 const Color _shelterProfileAccent = Color(0xFF0BCE83);
 
 class _ShelterProfilePageState extends State<ShelterProfilePage> {
-
   final AuthRepository _auth = AuthRepository();
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -27,10 +27,21 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
   bool _canEdit = false;
   List<Pet> _animals = const [];
   String? _animalsError;
+  String? _targetShelterId;
+  bool _didInit = false;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInit) return;
+    _didInit = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    _targetShelterId = _parseShelterId(args);
     _load();
   }
 
@@ -51,19 +62,13 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
       }
       final role =
           (await _auth.getMyProfile())?['role']?.toString().toLowerCase();
-      _canEdit = role == 'shelter';
-      if (role != 'shelter') {
-        setState(() {
-          _error = 'Shelter only';
-          _loading = false;
-        });
-        return;
-      }
+      final shelterId = _targetShelterId ?? user.id;
+      _canEdit = role == 'shelter' && shelterId == user.id;
 
       final data = await _supabase
           .from('shelter')
           .select()
-          .eq('shelter_id', user.id)
+          .eq('shelter_id', shelterId)
           .maybeSingle();
 
       List<Pet> list = const [];
@@ -74,7 +79,7 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
                 .select(
                   'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
                 )
-                .eq('shelter_id', user.id)
+                .eq('shelter_id', shelterId)
                 .order('animal_id', ascending: false);
         list = (animals as List)
             .map((raw) => Pet.fromMap(Map<String, dynamic>.from(raw)))
@@ -96,8 +101,21 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
     }
   }
 
+  String? _parseShelterId(Object? args) {
+    if (args == null) return null;
+    if (args is String) return args;
+    if (args is Pet) return args.shelterId;
+    if (args is Map) {
+      final raw = args['shelterId'] ?? args['id'];
+      return raw?.toString();
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    const double navHeight = 86;
+    final paddingBottom = MediaQuery.of(context).padding.bottom;
     final name = (_shelter?['shelter_name'] as String?) ?? 'Shelter';
     final rawStatus = (_shelter?['status'] as String?)?.trim();
     final status = (rawStatus == null || rawStatus.isEmpty)
@@ -108,97 +126,161 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
     final openRange = _extractOpenRange(contact);
     final description = _extractNotes(contact).join('\n');
     final openedOn = _formatOpenedOn(_shelter?['opened_on']);
-    final handle = _slugify(name);
+    const handle = 'Shelter Profile';
 
     return Container(
       color: _shelterProfileBg,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _TopBar(handle: handle),
-              const SizedBox(height: 18),
-              if (_loading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 32),
-                    child: CircularProgressIndicator(color: Color(0xFF5B30B5)),
+      child: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _load,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromRGBO(0, 0, 0, 0.08),
+                          blurRadius: 16,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _TopBar(
+                          handle: 'Shelter Profile',
+                          onSettings: () =>
+                              Navigator.pushNamed(context, '/profile'),
+                        ),
+                        const SizedBox(height: 18),
+                        if (_loading)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 32),
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF5B30B5),
+                              ),
+                            ),
+                          )
+                        else if (_error != null)
+                          _ErrorCard(message: _error ?? '')
+                        else ...[
+                          _ProfileHeader(
+                            name: name,
+                            description: description,
+                            status: status,
+                            openedOn: openedOn,
+                            location: location,
+                            openRange: openRange,
+                            canEdit: _canEdit,
+                            onEdit: () => Navigator.pushNamed(
+                              context,
+                              '/shelterProfileEdit',
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _ActionButton(
+                                  label: _canEdit
+                                      ? 'Edit profile'
+                                      : 'Contact shelter',
+                                  onTap: () {
+                                    if (_canEdit) {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/shelterProfileEdit',
+                                      );
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _ActionButton(
+                                  label: 'Share profile',
+                                  onTap: () {},
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              _CircleAction(
+                                icon: Icons.favorite_border,
+                                onTap: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                )
-              else if (_error != null)
-                _ErrorCard(message: _error ?? '')
-              else ...[
-                _ProfileHeader(
-                  name: name,
-                  description: description,
-                  status: status,
-                  openedOn: openedOn,
-                  location: location,
-                  openRange: openRange,
-                  canEdit: _canEdit,
-                  onEdit: () =>
-                      Navigator.pushNamed(context, '/shelterProfileEdit'),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ActionButton(
-                        label: _canEdit ? 'Edit profile' : 'Contact shelter',
-                        onTap: () {
-                          if (_canEdit) {
-                            Navigator.pushNamed(context, '/shelterProfileEdit');
-                          }
-                        },
-                      ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      color: _shelterProfileBg,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Color.fromRGBO(0, 0, 0, 0.06),
+                          blurRadius: 18,
+                          offset: Offset(0, -4),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _ActionButton(
-                        label: 'Share profile',
-                        onTap: () {},
-                      ),
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _SectionHeader(
+                          title: 'Our Furry Friends',
+                          subtitle: '${_animals.length} animals',
+                        ),
+                        const SizedBox(height: 12),
+                        if (_animalsError != null)
+                          Text(
+                            'Could not load animals: $_animalsError',
+                            style: const TextStyle(color: Colors.redAccent),
+                          )
+                        else if (_animals.isEmpty)
+                          const Text(
+                            'No animals listed yet.',
+                            style: TextStyle(color: _shelterProfileMuted),
+                          )
+                        else
+                          _AnimalGrid(animals: _animals),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    _CircleAction(
-                      icon: Icons.favorite_border,
-                      onTap: () {},
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                _SectionHeader(
-                  title: 'Shelter Listings',
-                  subtitle: '${_animals.length} animals',
-                ),
-                const SizedBox(height: 12),
-                if (_animalsError != null)
-                  Text(
-                    'Could not load animals: $_animalsError',
-                    style: const TextStyle(color: Colors.redAccent),
-                  )
-                else if (_animals.isEmpty)
-                  const Text(
-                    'No animals listed yet.',
-                  style: TextStyle(color: _shelterProfileMuted),
-                  )
-                else
-                  _AnimalGrid(animals: _animals),
-              ],
-            ],
+                  ),
+                  SizedBox(height: navHeight + 16 + paddingBottom),
+                ],
+              ),
+            ),
           ),
-        ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: RoleAwareBottomNav(
+              onCreateAllowed: () =>
+                  Navigator.pushNamed(context, '/createAnimal'),
+              onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+              onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
+              onMeetings: () =>
+                  Navigator.pushReplacementNamed(context, '/meetings'),
+              onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+              onShelterProfile: () =>
+                  Navigator.pushReplacementNamed(context, '/shelterProfile'),
+              activeTab: BottomNavTab.profile,
+            ),
+          ),
+        ],
       ),
     );
-  }
-
-  String _slugify(String input) {
-    final cleaned = input.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '');
-    return cleaned.isEmpty ? 'strayconnected' : cleaned;
   }
 
   String _extractOpenRange(String contact) {
@@ -234,19 +316,15 @@ List<String> _extractNotes(String contact) {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.handle});
+  const _TopBar({required this.handle, required this.onSettings});
 
   final String handle;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _TopIconButton(
-          icon: Icons.arrow_back_ios_new,
-          onTap: () => Navigator.maybePop(context),
-        ),
-        const SizedBox(width: 12),
         Expanded(
           child: Row(
             children: [
@@ -262,8 +340,8 @@ class _TopBar extends StatelessWidget {
           ),
         ),
         _TopIconButton(
-          icon: Icons.menu,
-          onTap: () {},
+          icon: Icons.settings,
+          onTap: onSettings,
         ),
       ],
     );

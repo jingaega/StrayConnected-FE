@@ -65,6 +65,8 @@ class _PetProfilePageState extends State<PetProfilePage> {
   }
 
   bool get _isAdopter => _role == 'adopter';
+  bool get _hasShelterTarget =>
+      _pet.shelterId != null && _pet.shelterId!.trim().isNotEmpty;
 
   Future<void> _refreshPet() async {
     setState(() {
@@ -151,6 +153,8 @@ class _PetProfilePageState extends State<PetProfilePage> {
                       distanceKm: _distanceKm,
                       distanceError: _distanceError,
                       distanceLoading: _distanceLoading,
+                      canViewShelter: _hasShelterTarget,
+                      onViewShelter: _handleViewShelter,
                     ),
                   ),
                 ),
@@ -228,6 +232,8 @@ class _PetProfilePageState extends State<PetProfilePage> {
             Navigator.pushReplacementNamed(context, '/meetings'),
         onProfile: () =>
             Navigator.pushReplacementNamed(context, '/profile'),
+        onShelterProfile: () =>
+            Navigator.pushReplacementNamed(context, '/shelterProfile'),
         activeTab: BottomNavTab.home,
       ),
     );
@@ -252,6 +258,24 @@ class _PetProfilePageState extends State<PetProfilePage> {
           rescuerId: _pet.rescuerId,
         ),
       ),
+    );
+  }
+
+  void _handleViewShelter() {
+    final shelterId = _pet.shelterId;
+    if (shelterId == null || shelterId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No shelter linked to this animal.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      '/shelterProfile',
+      arguments: {'shelterId': shelterId},
     );
   }
 
@@ -515,6 +539,8 @@ class _InfoCard extends StatelessWidget {
     this.distanceKm,
     this.distanceError,
     this.distanceLoading = false,
+    this.canViewShelter = false,
+    this.onViewShelter,
   });
 
   final Pet pet;
@@ -526,6 +552,8 @@ class _InfoCard extends StatelessWidget {
   final double? distanceKm;
   final String? distanceError;
   final bool distanceLoading;
+  final bool canViewShelter;
+  final VoidCallback? onViewShelter;
 
   @override
   Widget build(BuildContext context) {
@@ -676,6 +704,25 @@ class _InfoCard extends StatelessWidget {
                 height: 1.6,
               ),
             ),
+            if (canViewShelter) ...[
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: onViewShelter,
+                icon: const Icon(Icons.storefront_outlined, color: _primary),
+                label: const Text(
+                  'View Shelter',
+                  style: TextStyle(
+                    color: _primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: _primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+            ],
           ],
         ),
       ),

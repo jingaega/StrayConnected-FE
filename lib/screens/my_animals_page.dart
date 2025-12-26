@@ -191,6 +191,8 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
                 onMeetings: () =>
                     Navigator.pushReplacementNamed(context, '/meetings'),
                 onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+                onShelterProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.home,
               ),
             ),

@@ -352,9 +352,33 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
       case 'info':
         _showProfileInfo();
         break;
+      case 'view_shelter':
+        _handleViewShelter();
+        break;
       default:
         break;
     }
+  }
+
+  void _handleViewShelter() {
+    final shelterId =
+        (widget.item.shelterId != null && widget.item.shelterId!.isNotEmpty)
+            ? widget.item.shelterId
+            : (_otherRole == 'shelter' ? widget.item.userId : null);
+    if (shelterId == null || shelterId.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No shelter profile available for this chat.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    Navigator.pushNamed(
+      context,
+      '/shelterProfile',
+      arguments: {'shelterId': shelterId},
+    );
   }
 
   void _promptSelectMessage({String message = 'Long-press a message, then use the menu.'}) {
@@ -638,6 +662,9 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
   @override
   Widget build(BuildContext context) {
     final name = _otherName ?? widget.item.name;
+    final canViewShelter =
+        (widget.item.shelterId != null && widget.item.shelterId!.isNotEmpty) ||
+        _otherRole == 'shelter';
     return Scaffold(
       backgroundColor: const Color(0xFFF6F5F5),
       body: SafeArea(
@@ -647,6 +674,7 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
               name: name,
               onMenu: _handleMenuAction,
               hasSelection: _selectedOwnedMessages().isNotEmpty,
+              canViewShelter: canViewShelter,
             ),
             const Divider(height: 1, color: Color(0xFFD8D0E3)),
             const SizedBox(height: 12),
@@ -760,6 +788,8 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
         onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
         onMeetings: () => Navigator.pushReplacementNamed(context, '/meetings'),
         onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+        onShelterProfile: () =>
+            Navigator.pushReplacementNamed(context, '/shelterProfile'),
         activeTab: BottomNavTab.messages,
       ),
     );
@@ -771,11 +801,13 @@ class _Header extends StatelessWidget {
     required this.name,
     required this.onMenu,
     required this.hasSelection,
+    required this.canViewShelter,
   });
 
   final String name;
   final void Function(String action) onMenu;
   final bool hasSelection;
+  final bool canViewShelter;
 
   @override
   Widget build(BuildContext context) {
@@ -840,6 +872,11 @@ class _Header extends StatelessWidget {
                       value: 'info',
                       child: Text('Profile info'),
                     ),
+                    if (canViewShelter)
+                      const PopupMenuItem(
+                        value: 'view_shelter',
+                        child: Text('View Shelter'),
+                      ),
                   ],
             icon: const Icon(Icons.more_vert, color: Color(0xFF2D0C57)),
           ),
