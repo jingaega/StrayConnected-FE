@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
@@ -21,11 +22,31 @@ class CreateAnimalPage extends StatefulWidget {
   State<CreateAnimalPage> createState() => _CreateAnimalPageState();
 }
 
+enum _AgeType { exact, estimated, unknown }
+
+class _AgeRangeOption {
+  const _AgeRangeOption({
+    required this.label,
+    required this.minMonths,
+    this.maxMonths,
+  });
+
+  final String label;
+  final int minMonths;
+  final int? maxMonths;
+
+  int representativeMonths() {
+    if (maxMonths == null) return minMonths;
+    return ((minMonths + maxMonths!) / 2).round();
+  }
+}
+
 class _CreateAnimalPageState extends State<CreateAnimalPage> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
+  final _ageMonthsCtrl = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<String> _speciesOptions = const ['Cat', 'Dog', 'Other'];
@@ -35,14 +56,15 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     'Husky',
     'Unknown',
   ];
-  final List<int> _ageOptions = List<int>.generate(
-    20,
-    (i) => i + 1,
-  ); // 1..20 months
 
   String _selectedSpecies = 'Cat';
   String _selectedBreed = 'Calico';
-  int _selectedAge = 3;
+  _AgeType _ageType = _AgeType.estimated;
+  _AgeRangeOption _estimatedRange = const _AgeRangeOption(
+    label: 'Young (3–12 months)',
+    minMonths: 3,
+    maxMonths: 12,
+  );
   String? _role; // adopter | rescuer | shelter | admin
   final List<XFile> _selectedImages = [];
   final List<Uint8List> _selectedImageBytes = [];
@@ -61,10 +83,12 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   void dispose() {
     _nameCtrl.dispose();
     _descriptionCtrl.dispose();
+    _ageMonthsCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     final isValid = _formKey.currentState?.validate() ?? false;
     if (!isValid) return;
 
@@ -105,7 +129,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
 
       final Map<String, dynamic> payload = {
         'name': _nameCtrl.text.trim(),
-        'age': _selectedAge,
+        'age': _resolvedAgeMonths(),
         'breed': _selectedBreed,
         'species': _selectedSpecies,
         'description': _descriptionCtrl.text.trim(),
@@ -136,13 +160,13 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
               .single();
 
       if (!mounted) return;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Listing created!'),
           backgroundColor: _accent,
         ),
       );
-      Navigator.maybePop(context);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -162,7 +186,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     final tempPet = Pet(
       animalId: -1,
       name: _nameCtrl.text.trim().isEmpty ? 'New Animal' : _nameCtrl.text.trim(),
-      age: _selectedAge,
+      age: _resolvedAgeMonths(),
       breed: _selectedBreed,
       species: _selectedSpecies,
       description: _descriptionCtrl.text.trim(),
@@ -328,6 +352,27 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     return null;
   }
 
+  String? _validateExactAge(String? value) {
+    if (_ageType != _AgeType.exact) return null;
+    if (value == null || value.trim().isEmpty) return 'Required';
+    final parsed = int.tryParse(value.trim());
+    if (parsed == null) return 'Enter months';
+    if (parsed < 0 || parsed > 240) return 'Max 240 months';
+    return null;
+  }
+
+  int? _resolvedAgeMonths() {
+    switch (_ageType) {
+      case _AgeType.exact:
+        final parsed = int.tryParse(_ageMonthsCtrl.text.trim());
+        return parsed;
+      case _AgeType.estimated:
+        return _estimatedRange.representativeMonths();
+      case _AgeType.unknown:
+        return null;
+    }
+  }
+
   void _removeImageAt(int index) {
     if (index < 0 || index >= _selectedImages.length) return;
     setState(() {
@@ -419,25 +464,27 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _TwoUpRow(
-                        left: _DropdownField<int>(
-                          label: 'Insert Age (months)',
-                          value: _selectedAge,
-                          options: _ageOptions,
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() => _selectedAge = v);
-                          },
-                        ),
-                        right: _DropdownField<String>(
-                          label: 'Species',
-                          value: _selectedSpecies,
-                          options: _speciesOptions,
-                          onChanged: (v) {
-                            if (v == null) return;
-                            setState(() => _selectedSpecies = v);
-                          },
-                        ),
+                      _AgeSection(
+                        ageType: _ageType,
+                        exactAgeController: _ageMonthsCtrl,
+                        estimatedRange: _estimatedRange,
+                        onAgeTypeChanged: (value) {
+                          setState(() => _ageType = value);
+                        },
+                        onEstimatedRangeChanged: (value) {
+                          setState(() => _estimatedRange = value);
+                        },
+                        exactAgeValidator: _validateExactAge,
+                      ),
+                      const SizedBox(height: 14),
+                      _DropdownField<String>(
+                        label: 'Species',
+                        value: _selectedSpecies,
+                        options: _speciesOptions,
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => _selectedSpecies = v);
+                        },
                       ),
                       const SizedBox(height: 14),
                       Align(
@@ -504,8 +551,16 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          onPressed:
-                              _isSubmitting ? null : _submit,
+                          onPressed: _isSubmitting
+                              ? null
+                              : () {
+                                  _submit();
+                                  Navigator.of(context, rootNavigator: true)
+                                      .pushNamedAndRemoveUntil(
+                                    '/home',
+                                    (route) => false,
+                                  );
+                                },
                           child:
                               _isSubmitting
                                   ? const SizedBox(
@@ -694,6 +749,164 @@ class _PhotoThumb extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _AgeSection extends StatelessWidget {
+  const _AgeSection({
+    required this.ageType,
+    required this.exactAgeController,
+    required this.estimatedRange,
+    required this.onAgeTypeChanged,
+    required this.onEstimatedRangeChanged,
+    this.exactAgeValidator,
+  });
+
+  final _AgeType ageType;
+  final TextEditingController exactAgeController;
+  final _AgeRangeOption estimatedRange;
+  final ValueChanged<_AgeType> onAgeTypeChanged;
+  final ValueChanged<_AgeRangeOption> onEstimatedRangeChanged;
+  final FormFieldValidator<String>? exactAgeValidator;
+
+  static const List<_AgeRangeOption> _rangeOptions = [
+    _AgeRangeOption(label: 'Baby (0-3 months)', minMonths: 0, maxMonths: 3),
+    _AgeRangeOption(label: 'Young (3-12 months)', minMonths: 3, maxMonths: 12),
+    _AgeRangeOption(label: 'Adult (1-7 years)', minMonths: 12, maxMonths: 84),
+    _AgeRangeOption(label: 'Senior (7+ years)', minMonths: 84),
+  ];
+
+  String _labelForType(_AgeType type) {
+    switch (type) {
+      case _AgeType.exact:
+        return 'Exact age known';
+      case _AgeType.estimated:
+        return 'Estimated age';
+      case _AgeType.unknown:
+        return 'Unknown';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Age Type',
+          style: TextStyle(
+            color: _label,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            letterSpacing: 0.1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _stroke, width: 1.2),
+            color: Colors.white,
+          ),
+            child: Column(
+              children:
+                  const [
+                    _AgeType.estimated,
+                    _AgeType.exact,
+                    _AgeType.unknown,
+                  ].map((type) {
+                    return RadioListTile<_AgeType>(
+                      value: type,
+                      groupValue: ageType,
+                      onChanged: (value) {
+                        if (value != null) onAgeTypeChanged(value);
+                      },
+                      dense: true,
+                      title: Text(_labelForType(type)),
+                    );
+                  }).toList(),
+            ),
+        ),
+        if (ageType == _AgeType.exact) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'Exact Age (months)',
+            style: TextStyle(
+              color: _label,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              letterSpacing: 0.1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _stroke, width: 1.2),
+              color: Colors.white,
+            ),
+            child: TextFormField(
+              controller: exactAgeController,
+              validator: exactAgeValidator,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
+                hintText: 'e.g., 8',
+                hintStyle: TextStyle(color: Color(0xFFB7AFC3)),
+                border: InputBorder.none,
+                suffixText: 'months',
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Enter months only (0-240).',
+            style: TextStyle(
+              color: _label,
+              fontSize: 11,
+            ),
+          ),
+        ],
+        if (ageType == _AgeType.estimated) ...[
+          const SizedBox(height: 10),
+          const Text(
+            'Estimated age range',
+            style: TextStyle(
+              color: _label,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              letterSpacing: 0.1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children:
+                _rangeOptions.map((opt) {
+                  final selected = opt.label == estimatedRange.label;
+                  return ChoiceChip(
+                    label: Text(opt.label),
+                    selected: selected,
+                    onSelected: (_) => onEstimatedRangeChanged(opt),
+                  );
+                }).toList(),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Estimated age is totally okay for rescued animals.',
+            style: TextStyle(
+              color: _label,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ],
     );
   }

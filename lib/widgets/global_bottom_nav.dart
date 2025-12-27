@@ -14,6 +14,7 @@ class GlobalBottomNav extends StatelessWidget {
     required this.onMeetings,
     required this.onProfile,
     this.activeTab = BottomNavTab.home,
+    this.showCreate = true,
   });
 
   final bool canCreate;
@@ -23,6 +24,7 @@ class GlobalBottomNav extends StatelessWidget {
   final VoidCallback onMeetings;
   final VoidCallback onProfile;
   final BottomNavTab activeTab;
+  final bool showCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -64,25 +66,28 @@ class GlobalBottomNav extends StatelessWidget {
             color: colorFor(BottomNavTab.messages),
             onTap: onMessages,
           ),
-          GestureDetector(
-            onTap: canCreate ? onCreate : null,
-            child: Container(
-              width: 68,
-              height: 68,
-              decoration: BoxDecoration(
-                color: canCreate ? accent : const Color(0xFFE0E0E0),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color.fromRGBO(0, 0, 0, 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+          if (showCreate)
+            GestureDetector(
+              onTap: canCreate ? onCreate : null,
+              child: Container(
+                width: 68,
+                height: 68,
+                decoration: BoxDecoration(
+                  color: canCreate ? accent : const Color(0xFFE0E0E0),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color.fromRGBO(0, 0, 0, 0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.add, color: Colors.white, size: 30),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 30),
-            ),
-          ),
+            )
+          else
+            const SizedBox(width: 68, height: 68),
           _NavItem(
             icon: Icons.event_available_outlined,
             color: colorFor(BottomNavTab.meetings),
@@ -111,6 +116,7 @@ class RoleAwareBottomNav extends StatefulWidget {
     required this.onMeetings,
     required this.onProfile,
     this.onShelterProfile,
+    this.showCreate = true,
   });
 
   final BottomNavTab activeTab;
@@ -120,6 +126,7 @@ class RoleAwareBottomNav extends StatefulWidget {
   final VoidCallback onMeetings;
   final VoidCallback onProfile;
   final VoidCallback? onShelterProfile;
+  final bool showCreate;
 
   @override
   State<RoleAwareBottomNav> createState() => _RoleAwareBottomNavState();
@@ -168,6 +175,7 @@ class _RoleAwareBottomNavState extends State<RoleAwareBottomNav> {
       onMeetings: widget.onMeetings,
       onProfile: onProfile,
       activeTab: widget.activeTab,
+      showCreate: widget.showCreate,
     );
   }
 }

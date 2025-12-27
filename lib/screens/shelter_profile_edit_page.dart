@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,16 +13,21 @@ class ShelterProfileEditPage extends StatefulWidget {
 class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
   final AuthRepository _auth = AuthRepository();
   bool _loading = true;
-  String? _error;
-  Map<String, dynamic>? _shelter;
   bool _saving = false;
+  String? _error;
 
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _openedOnController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _hoursController = TextEditingController();
-  final TextEditingController _descriptionController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _locationController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  DateTime? _openedOn;
+  DateTime? _createdAt;
+  TimeOfDay? _openTime;
+  TimeOfDay? _closeTime;
   String? _statusValue;
+  String? _credentialFileName;
+  String? _photoFileName;
 
   @override
   void initState() {
@@ -32,10 +38,9 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _openedOnController.dispose();
     _locationController.dispose();
-    _hoursController.dispose();
     _descriptionController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -67,11 +72,8 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
           .select()
           .eq('shelter_id', user.id)
           .maybeSingle();
-      setState(() {
-        _shelter = data as Map<String, dynamic>?;
-        _hydrateFields();
-        _loading = false;
-      });
+      _hydrateFields(data as Map<String, dynamic>?);
+      setState(() => _loading = false);
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -80,216 +82,156 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final name = (_shelter?['shelter_name'] as String?) ?? 'Shelter';
-    final rawStatus = (_shelter?['status'] as String?)?.trim();
-    final status = (rawStatus == null || rawStatus.isEmpty)
-        ? 'Not set'
-        : rawStatus;
-    final contact = (_shelter?['contact_info'] as String?) ?? '';
-    final location = (_shelter?['location'] as String?) ?? '';
-    final openRange = _extractOpenRange(contact);
-    final description = _extractNotes(contact).join('\n');
-    final openedOn = _formatOpenedOn(_shelter?['opened_on']);
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F5F5),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            child: Column(
-              children: [
-                _HeaderBar(
-                  title: 'Edit Shelter Profile',
-                  onBack: () => Navigator.maybePop(context),
-                ),
-                Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(26),
-                      topRight: Radius.circular(26),
-                    ),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _ProfileCard(
-                          name: name,
-                          status: status,
-                        ),
-                        const SizedBox(height: 18),
-                        if (_loading)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF5B30B5),
-                              ),
-                            ),
-                          )
-                        else if (_error != null)
-                          _ErrorCard(message: _error ?? '')
-                        else ...[
-                          _LabeledField(
-                            label: 'Shelter Name',
-                            value: name,
-                            controller: _nameController,
-                          ),
-                          const SizedBox(height: 14),
-                          _LabeledField(
-                            label: 'Opened since',
-                            value: openedOn,
-                            controller: _openedOnController,
-                            trailing: Icons.calendar_today_outlined,
-                          ),
-                          const SizedBox(height: 14),
-                          _LabeledField(
-                            label: 'Status',
-                            value: status,
-                            controller: null,
-                            trailing: null,
-                            isDropdown: true,
-                            dropdownValue: _statusValue,
-                            onDropdownChanged: (val) =>
-                                setState(() => _statusValue = val),
-                          ),
-                          const SizedBox(height: 14),
-                          _LabeledField(
-                            label: 'Location',
-                            value:
-                                location.isEmpty ? 'Not set' : location,
-                            controller: _locationController,
-                          ),
-                          const SizedBox(height: 14),
-                          _LabeledField(
-                            label: 'Operating hours',
-                            value: openRange.isEmpty
-                                ? 'Not set'
-                                : openRange,
-                            controller: _hoursController,
-                          ),
-                          const SizedBox(height: 14),
-                          _LabeledField(
-                            label: 'Description',
-                            value: description.isEmpty
-                                ? 'No description yet.'
-                                : description,
-                            isMultiline: true,
-                            controller: _descriptionController,
-                          ),
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            height: 52,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0ACF83),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              onPressed:
-                                  _saving ? null : _saveShelterChanges,
-                              child: _saving
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text(
-                                      'SAVE CHANGES',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  void _hydrateFields(Map<String, dynamic>? shelter) {
+    if (shelter == null) return;
+    _nameController.text = (shelter['shelter_name'] as String?) ?? '';
+    _locationController.text = (shelter['location'] as String?) ?? '';
+    _descriptionController.text = (shelter['description'] as String?) ?? '';
+    _phoneController.text = (shelter['contact_info'] as String?) ?? '';
+    _statusValue = (shelter['status'] as String?)?.trim();
+    _credentialFileName = (shelter['credentials_url'] as String?)?.trim();
+    _photoFileName = (shelter['shelter_photo_url'] as String?)?.trim();
+    _openedOn = _parseDate(shelter['opened_on']);
+    _createdAt = _parseDate(shelter['created_at']);
+    _openTime = _parseTime(shelter['operating_hours_start']);
+    _closeTime = _parseTime(shelter['operating_hours_end']);
   }
 
-  String _extractOpenRange(String contact) {
-    final lines = contact.split('\n');
-    for (final line in lines) {
-      final lower = line.toLowerCase();
-      if (lower.startsWith('open:')) {
-        return line.replaceFirst(RegExp('open:\\s*', caseSensitive: false), '');
-      }
-    }
-    return '';
-  }
-
-  String _formatOpenedOn(dynamic value) {
-    if (value == null) return 'Not set';
+  DateTime? _parseDate(dynamic value) {
+    if (value == null) return null;
     final raw = value.toString().trim();
-    if (raw.isEmpty) return 'Not set';
-    return raw;
+    if (raw.isEmpty) return null;
+    return DateTime.tryParse(raw);
   }
 
-  void _hydrateFields() {
-    final name = (_shelter?['shelter_name'] as String?) ?? '';
-    final location = (_shelter?['location'] as String?) ?? '';
-    final contact = (_shelter?['contact_info'] as String?) ?? '';
-    final openRange = _extractOpenRange(contact);
-    final description = _extractNotes(contact).join('\n');
-    final openedOn = _formatOpenedOn(_shelter?['opened_on']);
-    final rawStatus = (_shelter?['status'] as String?)?.trim();
-    _nameController.text = name;
-    _locationController.text = location;
-    _hoursController.text = openRange;
-    _descriptionController.text = description;
-    _openedOnController.text = openedOn == 'Not set' ? '' : openedOn;
-    _statusValue = rawStatus;
+  TimeOfDay? _parseTime(dynamic value) {
+    if (value == null) return null;
+    final raw = value.toString().trim();
+    if (raw.isEmpty) return null;
+    final parts = raw.split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1]) ?? 0;
+    return TimeOfDay(hour: hour, minute: minute);
   }
 
-  Future<void> _saveShelterChanges() async {
+  String _formatTime(TimeOfDay? time) {
+    if (time == null) return '';
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '$h:$m:00';
+  }
+
+  String get _openedOnLabel {
+    if (_openedOn == null) return 'Time Opened';
+    return '${_openedOn!.year}';
+  }
+
+  String get _openTimeLabel {
+    if (_openTime == null) return '08:00';
+    return _formatTime(_openTime).substring(0, 5);
+  }
+
+  String get _closeTimeLabel {
+    if (_closeTime == null) return '17:00';
+    return _formatTime(_closeTime).substring(0, 5);
+  }
+
+  String get _createdAtLabel {
+    if (_createdAt == null) return 'Not available';
+    return _createdAt!.toIso8601String().split('T').first;
+  }
+
+  Future<void> _pickOpenedOn() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _openedOn ?? DateTime(now.year - 1, now.month, now.day),
+      firstDate: DateTime(1950),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() => _openedOn = picked);
+    }
+  }
+
+  Future<void> _pickOpenTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _openTime ?? const TimeOfDay(hour: 8, minute: 0),
+    );
+    if (picked != null) {
+      setState(() => _openTime = picked);
+    }
+  }
+
+  Future<void> _pickCloseTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _closeTime ?? const TimeOfDay(hour: 17, minute: 0),
+    );
+    if (picked != null) {
+      setState(() => _closeTime = picked);
+    }
+  }
+
+  Future<void> _pickPhoto() async {
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: false,
+    );
+    if (res != null && res.files.isNotEmpty) {
+      setState(() => _photoFileName = res.files.first.name);
+    }
+  }
+
+  Future<void> _pickCredentials() async {
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg'],
+    );
+    if (res != null && res.files.isNotEmpty) {
+      setState(() => _credentialFileName = res.files.first.name);
+    }
+  }
+
+  Future<void> _save() async {
     if (_saving) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     setState(() => _saving = true);
     try {
-      final openRange = _hoursController.text.trim();
-      final desc = _descriptionController.text.trim();
-      final timeLine = openRange.isEmpty ? '' : 'Open: $openRange\n';
-      final contactInfo = '$timeLine$desc'.trim();
-      DateTime? openedOn;
-      if (_openedOnController.text.trim().isNotEmpty) {
-        openedOn = DateTime.tryParse(_openedOnController.text.trim());
-      }
-
       final payload = <String, dynamic>{
         'shelter_name': _nameController.text.trim(),
         'location': _locationController.text.trim(),
-        'contact_info': contactInfo,
+        'description': _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        'contact_info': _phoneController.text.trim().isEmpty
+            ? null
+            : _phoneController.text.trim(),
+        'opened_on': _openedOn?.toIso8601String().split('T').first,
         'status': _statusValue,
-        'opened_on': openedOn,
+        'operating_hours_start':
+            _openTime == null ? null : _formatTime(_openTime),
+        'operating_hours_end':
+            _closeTime == null ? null : _formatTime(_closeTime),
+        'credentials_url': _credentialFileName,
+        'shelter_photo_url': _photoFileName,
       };
 
       await Supabase.instance.client
           .from('shelter')
           .update(payload)
           .eq('shelter_id', user.id);
-
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 1),
+        ),
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -299,189 +241,458 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
-      setState(() => _saving = false);
-      return;
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  @override
+  Widget build(BuildContext context) {
+    const bg = Color(0xFFF6F5F5);
+    final descCount = _descriptionController.text.length;
+
+    return Scaffold(
+      backgroundColor: bg,
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Header(
+                  onBack: () => Navigator.maybePop(context),
+                ),
+                const SizedBox(height: 18),
+                if (_loading)
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF5B30B5),
+                      ),
+                    ),
+                  )
+                else if (_error != null)
+                  _ErrorCard(message: _error ?? '')
+                else ...[
+                  _DashedBorder(
+                    color: const Color(0xFFD8D0E3),
+                    radius: 14,
+                    dash: 6,
+                    gap: 4,
+                    child: Container(
+                      width: double.infinity,
+                      height: 160,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F1F7),
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color.fromRGBO(0, 0, 0, 0.04),
+                            blurRadius: 12,
+                            offset: Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF5B30B5),
+                            side: const BorderSide(color: Color(0xFFD8D0E3)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _pickPhoto,
+                          icon: const Icon(Icons.upload),
+                          label: Text(
+                            _photoFileName ?? 'Upload Shelter Photo',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const _HelperText(
+                    'This photo will be shown on your public shelter profile.',
+                  ),
+                  const SizedBox(height: 24),
+                  const _SectionTitle('Shelter Details'),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Shelter Name',
+                          child: TextField(
+                            controller: _nameController,
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              hintText: 'Shelter Name',
+                              hintStyle: TextStyle(color: Color(0xFFB0A3C6)),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Time Opened',
+                          child: InkWell(
+                            onTap: _pickOpenedOn,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(
+                                height: 48,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        _openedOnLabel,
+                                        style: const TextStyle(
+                                          color: Color(0xFF2D0C57),
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.expand_more,
+                                      color: Color(0xFF9586A8),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'This name will be visible to adopters.',
+                    style: TextStyle(color: Color(0xFF9586A8), fontSize: 12),
+                  ),
+                  const SizedBox(height: 14),
+                  _LabeledBox(
+                    label: 'Phone Number',
+                    child: TextField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'Add phone number',
+                        hintStyle: TextStyle(color: Color(0xFFB0A3C6)),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Status',
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: DropdownButtonFormField<String>(
+                              value: _statusValue,
+                              isExpanded: true,
+                              decoration:
+                                  const InputDecoration(border: InputBorder.none),
+                              hint: const Text(
+                                'Select status',
+                                style: TextStyle(color: Color(0xFFB0A3C6)),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'open',
+                                  child: Text('Open'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'closed',
+                                  child: Text('Temporarily Closed'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'limited_operation',
+                                  child: Text('Limited Operation'),
+                                ),
+                              ],
+                              onChanged: (val) =>
+                                  setState(() => _statusValue = val),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Upload Credentials',
+                          height: 80,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF5B30B5),
+                                side: const BorderSide(color: Color(0xFFD8D0E3)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: _pickCredentials,
+                              icon: const Icon(Icons.upload_file),
+                              label: Text(
+                                _credentialFileName ?? 'Upload Credentials',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: const [
+                      Expanded(
+                        child: Text(
+                          'Controls whether adopters can request meetings.',
+                          style: TextStyle(
+                            color: Color(0xFF9586A8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Accepted: PDF, JPG',
+                          style: TextStyle(
+                            color: Color(0xFF9586A8),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  const _SectionTitle('Operations'),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Operating Hours',
+                          child: InkWell(
+                            onTap: _pickOpenTime,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(
+                                height: 48,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _openTimeLabel,
+                                    style: const TextStyle(
+                                      color: Color(0xFF2D0C57),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _LabeledBox(
+                          label: ' ',
+                          child: InkWell(
+                            onTap: _pickCloseTime,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: SizedBox(
+                                height: 48,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    _closeTimeLabel,
+                                    style: const TextStyle(
+                                      color: Color(0xFF2D0C57),
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _LabeledBox(
+                    label: 'Location',
+                    child: TextField(
+                      controller: _locationController,
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText: 'City or district',
+                        hintStyle: TextStyle(color: Color(0xFFB0A3C6)),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  const _SectionTitle('About Your Shelter'),
+                  const SizedBox(height: 10),
+                  _LabeledBox(
+                    label: 'Description',
+                    height: 150,
+                    child: TextField(
+                      controller: _descriptionController,
+                      maxLines: null,
+                      maxLength: 300,
+                      onChanged: (_) => setState(() {}),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        hintText:
+                            "Describe your shelter's mission, policies, or adoption process",
+                        hintStyle: TextStyle(color: Color(0xFFB0A3C6)),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
+                        counterText: '',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '$descCount / 300',
+                      style: const TextStyle(
+                        color: Color(0xFF9586A8),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _PrimaryButton(
+                    label: 'CONFIRM',
+                    onPressed: _saving ? null : _save,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-List<String> _splitContact(String contact) {
-  return contact
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
-}
+class _Header extends StatelessWidget {
+  const _Header({required this.onBack});
 
-List<String> _extractNotes(String contact) {
-  final lines = _splitContact(contact);
-  return lines.where((l) => !l.toLowerCase().startsWith('open:')).toList();
-}
-
-class _HeaderBar extends StatelessWidget {
-  const _HeaderBar({required this.title, required this.onBack});
-
-  final String title;
   final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF5B30B5), Color(0xFF0BCE83)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          ),
-          const Spacer(),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const Spacer(),
-          const SizedBox(width: 40),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProfileCard extends StatelessWidget {
-  const _ProfileCard({
-    required this.name,
-    required this.status,
-  });
-
-  final String name;
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final isOpen = status.toLowerCase() == 'open';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(0, 0, 0, 0.08),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-        border: Border.all(color: const Color(0xFFE7E1F2)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 70,
-            height: 70,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [Color(0xFF5B30B5), Color(0xFF0BCE83)],
-              ),
-            ),
-            child: const Center(
-              child: CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.pets,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 100,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: onBack,
+                icon: const Icon(
+                  Icons.arrow_back_ios_new,
                   color: Color(0xFF5B30B5),
-                  size: 30,
                 ),
               ),
-            ),
+              Image.asset(
+                'assets/images/LOGO.png',
+                width: 100,
+                height: 100,
+                fit: BoxFit.contain,
+              ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF2D0C57),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _StatusPill(
-                  label: status.isEmpty ? 'Not set' : status,
-                  color: isOpen ? const Color(0xFF0ACF83) : Colors.grey,
-                ),
-              ],
-            ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'Manage Shelter',
+          style: TextStyle(
+            color: Color(0xFF2D0C57),
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          "Update your shelter's public information",
+          style: TextStyle(
+            color: Color(0xFF9586A8),
+            fontSize: 13,
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
 
-  final String label;
-  final Color color;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF5B30B5),
+        fontSize: 16,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
 }
 
-class _LabeledField extends StatelessWidget {
-  const _LabeledField({
+class _LabeledBox extends StatelessWidget {
+  const _LabeledBox({
     required this.label,
-    required this.value,
-    this.trailing,
-    this.isMultiline = false,
-    this.controller,
-    this.isDropdown = false,
-    this.dropdownValue,
-    this.onDropdownChanged,
+    required this.child,
+    this.height = 69,
+    this.helperText,
   });
 
   final String label;
-  final String value;
-  final IconData? trailing;
-  final bool isMultiline;
-  final TextEditingController? controller;
-  final bool isDropdown;
-  final String? dropdownValue;
-  final ValueChanged<String?>? onDropdownChanged;
+  final Widget child;
+  final double height;
+  final String? helperText;
 
   @override
   Widget build(BuildContext context) {
@@ -492,70 +703,79 @@ class _LabeledField extends StatelessWidget {
           label,
           style: const TextStyle(
             color: Color(0xFF9586A8),
+            fontSize: 16,
             fontWeight: FontWeight.w600,
-            fontSize: 14,
           ),
         ),
-        const SizedBox(height: 8),
         Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          margin: const EdgeInsets.only(top: 6),
+          height: height,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFD9D0E3)),
+            border: Border.all(color: const Color(0xFFE4E2EE)),
           ),
-          child: isDropdown
-              ? DropdownButtonFormField<String>(
-                  value: dropdownValue,
-                  decoration: const InputDecoration(border: InputBorder.none),
-                  hint: const Text(
-                    'Select status',
-                    style: TextStyle(color: Color(0xFF9586A8)),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'open', child: Text('Open')),
-                    DropdownMenuItem(value: 'closed', child: Text('Closed')),
-                  ],
-                  onChanged: onDropdownChanged,
-                )
-              : controller != null
-                  ? TextField(
-                      controller: controller,
-                      maxLines: isMultiline ? null : 1,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        suffixIcon: trailing == null
-                            ? null
-                            : Icon(trailing,
-                                size: 18, color: const Color(0xFF9586A8)),
-                      ),
-                      style: const TextStyle(
-                        color: Color(0xFF2D0C57),
-                        fontSize: 15,
-                      ),
-                    )
-                  : Row(
-                      crossAxisAlignment: isMultiline
-                          ? CrossAxisAlignment.start
-                          : CrossAxisAlignment.center,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            value,
-                            style: const TextStyle(
-                              color: Color(0xFF2D0C57),
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                        if (trailing != null)
-                          Icon(trailing,
-                              size: 18, color: const Color(0xFF9586A8)),
-                      ],
-                    ),
+          alignment: Alignment.centerLeft,
+          child: child,
         ),
+        if (helperText != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            helperText!,
+            style: const TextStyle(color: Color(0xFF9586A8), fontSize: 12),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF0ACF83),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            letterSpacing: -0.01,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HelperText extends StatelessWidget {
+  const _HelperText(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: Color(0xFF9586A8),
+        fontSize: 12,
+      ),
     );
   }
 }
@@ -590,5 +810,88 @@ class _ErrorCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _DashedBorder extends StatelessWidget {
+  const _DashedBorder({
+    required this.child,
+    required this.color,
+    this.radius = 12,
+    this.strokeWidth = 1.2,
+    this.dash = 6,
+    this.gap = 4,
+  });
+
+  final Widget child;
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+  final double dash;
+  final double gap;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _DashedBorderPainter(
+        color: color,
+        radius: radius,
+        strokeWidth: strokeWidth,
+        dash: dash,
+        gap: gap,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DashedBorderPainter extends CustomPainter {
+  _DashedBorderPainter({
+    required this.color,
+    required this.radius,
+    required this.strokeWidth,
+    required this.dash,
+    required this.gap,
+  });
+
+  final Color color;
+  final double radius;
+  final double strokeWidth;
+  final double dash;
+  final double gap;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth;
+
+    final rect = Rect.fromLTWH(
+      strokeWidth / 2,
+      strokeWidth / 2,
+      size.width - strokeWidth,
+      size.height - strokeWidth,
+    );
+    final rrect = RRect.fromRectAndRadius(rect, Radius.circular(radius));
+    final path = Path()..addRRect(rrect);
+
+    for (final metric in path.computeMetrics()) {
+      double distance = 0;
+      while (distance < metric.length) {
+        final next = distance + dash;
+        canvas.drawPath(metric.extractPath(distance, next), paint);
+        distance = next + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.radius != radius ||
+        oldDelegate.strokeWidth != strokeWidth ||
+        oldDelegate.dash != dash ||
+        oldDelegate.gap != gap;
   }
 }

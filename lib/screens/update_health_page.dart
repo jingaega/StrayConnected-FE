@@ -252,8 +252,9 @@ class _UpdateHealthPageState extends State<UpdateHealthPage> {
   Widget build(BuildContext context) {
     final pet = widget.pet;
     final imageUrl = pet?.primaryImageUrl;
+    final baseAgeLabel = pet?.ageLabel ?? 'Age unknown';
     final ageLabel =
-        pet?.age != null ? '${pet!.age} months old' : 'Age unknown';
+        baseAgeLabel == 'Age unknown' ? baseAgeLabel : '$baseAgeLabel old';
     final name = pet?.name ?? 'New Animal';
 
     return Scaffold(

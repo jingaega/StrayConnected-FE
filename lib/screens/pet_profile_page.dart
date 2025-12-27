@@ -112,8 +112,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     const double navHeight = 86;
-    final String ageLabel =
-        _pet.age != null ? '${_pet.age} m/o' : 'Age unknown';
+    final String ageLabel = _pet.ageLabelShort;
     final String traits = [
       if (_pet.breed != null && _pet.breed!.isNotEmpty) _pet.breed!.trim(),
       if (_pet.species != null && _pet.species!.isNotEmpty)

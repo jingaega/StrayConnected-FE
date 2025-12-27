@@ -38,6 +38,9 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.lockRole) {
+      _selectedRole = 'shelter';
+    }
     final preset = widget.presetRole?.trim().toLowerCase();
     if (preset != null && _allowedRoles.contains(preset)) {
       _selectedRole = preset;

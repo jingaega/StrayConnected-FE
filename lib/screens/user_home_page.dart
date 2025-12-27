@@ -567,7 +567,7 @@ class _PetCard extends StatelessWidget {
       if (pet.species != null && pet.species!.isNotEmpty) pet.species,
     ].join(' • ');
 
-    final ageText = pet.age != null ? '${pet.age} months' : 'Age unknown';
+    final ageText = pet.ageLabel;
     final healthLabel = pet.displayHealthLabel;
     final hasHealthLabel = healthLabel != null && healthLabel.isNotEmpty;
 
@@ -764,6 +764,10 @@ class Pet {
   String? get primaryImageUrl =>
       imageUrls.isNotEmpty ? imageUrls.first : null;
 
+  String get ageLabel => _formatAgeLabel(age, short: false);
+
+  String get ageLabelShort => _formatAgeLabel(age, short: true);
+
   bool get hasVaccinationCertificate =>
       vaccinationCertificateUrl != null &&
       vaccinationCertificateUrl!.trim().isNotEmpty;
@@ -804,6 +808,18 @@ class Pet {
       rescuerId: map['rescuer_id']?.toString(),
     );
   }
+}
+
+String _formatAgeLabel(int? months, {required bool short}) {
+  if (months == null) return 'Age unknown';
+  if (months >= 12) {
+    final years = months ~/ 12;
+    if (short) {
+      return years == 1 ? '1 yr' : '$years yrs';
+    }
+    return years == 1 ? '1 year' : '$years years';
+  }
+  return short ? '$months m/o' : '$months months';
 }
 
 class FilterOption {

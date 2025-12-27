@@ -259,8 +259,7 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     final pet = widget.pet;
-    final String ageLabel =
-        pet.age != null ? '${pet.age} m/o' : 'Age unknown';
+    final String ageLabel = pet.ageLabelShort;
     final String traitLine = [
       if (pet.breed != null && pet.breed!.isNotEmpty) pet.breed,
       if (pet.species != null && pet.species!.isNotEmpty) pet.species,
