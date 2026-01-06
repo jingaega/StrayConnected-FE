@@ -16,7 +16,9 @@ const Color _stroke = Color(0xFFD8D0E3);
 const String _animalImageBucket = 'animal-images';
 
 class CreateAnimalPage extends StatefulWidget {
-  const CreateAnimalPage({super.key});
+  const CreateAnimalPage({super.key, this.petToEdit});
+
+  final Pet? petToEdit;
 
   @override
   State<CreateAnimalPage> createState() => _CreateAnimalPageState();
@@ -49,13 +51,8 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   final _ageMonthsCtrl = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
-  final List<String> _speciesOptions = const ['Cat', 'Dog', 'Other'];
-  final List<String> _breedOptions = const [
-    'Calico',
-    'Mixed',
-    'Husky',
-    'Unknown',
-  ];
+  final List<String> _speciesOptions = ['Cat', 'Dog', 'Other'];
+  final List<String> _breedOptions = ['Calico', 'Mixed', 'Husky', 'Unknown'];
 
   String _selectedSpecies = 'Cat';
   String _selectedBreed = 'Calico';
@@ -72,10 +69,17 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
 
   final SupabaseClient _supabase = Supabase.instance.client;
   bool _isSubmitting = false;
+  bool _isDeleting = false;
+  List<String> _prefilledImageUrls = const [];
+
+  bool get _isEditing => widget.petToEdit != null;
 
   @override
   void initState() {
     super.initState();
+    if (widget.petToEdit != null) {
+      _prefillFromPet(widget.petToEdit!);
+    }
     _loadRole();
   }
 
@@ -87,10 +91,44 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_isSubmitting) return;
+  void _prefillFromPet(Pet pet) {
+    _nameCtrl.text = pet.name;
+    _descriptionCtrl.text = pet.description ?? '';
+    _prefilledImageUrls = pet.imageUrls;
+
+    if (pet.age != null) {
+      _ageType = _AgeType.exact;
+      _ageMonthsCtrl.text = pet.age.toString();
+    } else {
+      _ageType = _AgeType.unknown;
+    }
+
+    if (pet.species != null && pet.species!.trim().isNotEmpty) {
+      final species = pet.species!.trim();
+      if (!_speciesOptions.contains(species)) {
+        _speciesOptions.add(species);
+      }
+      _selectedSpecies = species;
+    }
+
+    if (pet.breed != null && pet.breed!.trim().isNotEmpty) {
+      final breed = pet.breed!.trim();
+      if (!_breedOptions.contains(breed)) {
+        _breedOptions.add(breed);
+      }
+      _selectedBreed = breed;
+    }
+
+    _healthDraft = HealthDraft(
+      knownDiseases: pet.knownDiseases,
+      isNeutered: _healthDraft?.isNeutered,
+    );
+  }
+
+  Future<bool> _submit() async {
+    if (_isSubmitting) return false;
     final isValid = _formKey.currentState?.validate() ?? false;
-    if (!isValid) return;
+    if (!isValid) return false;
 
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) {
@@ -100,7 +138,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
-      return;
+      return false;
     }
     if (_role != 'rescuer' && _role != 'shelter' && _role != 'admin') {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,17 +147,25 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
-      return;
+      return false;
     }
 
     setState(() => _isSubmitting = true);
 
+    bool success = false;
     try {
-      final certificateUrl = await _uploadDraftCertificate(userId);
-      final imageUrls = await _uploadSelectedImages(userId);
+      final certificateUrl =
+          await _uploadDraftCertificate(userId) ??
+              widget.petToEdit?.vaccinationCertificateUrl;
+      final existingImages = widget.petToEdit?.imageUrls ?? [];
+      final imageUrls =
+          _selectedImages.isEmpty
+              ? existingImages
+              : await _uploadSelectedImages(userId);
+      final knownDiseases =
+          _healthDraft?.knownDiseases ?? widget.petToEdit?.knownDiseases;
       final hasKnownDisease =
-          _healthDraft?.knownDiseases != null &&
-          _healthDraft!.knownDiseases!.trim().isNotEmpty;
+          knownDiseases != null && knownDiseases.trim().isNotEmpty;
       final hasCertificate =
           certificateUrl != null && certificateUrl.trim().isNotEmpty;
       final healthStatus = _computeHealthStatus(
@@ -135,40 +181,56 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
         'description': _descriptionCtrl.text.trim(),
         'health_status': healthStatus,
         'link_picture': imageUrls.isNotEmpty ? jsonEncode(imageUrls) : '',
-        'known_diseases': _healthDraft?.knownDiseases,
+        'known_diseases': knownDiseases,
         'is_neutered': _healthDraft?.isNeutered,
         'vaccination_certificate_url': certificateUrl,
       };
 
-      // Tag ownership based on role
-      if (_role == 'rescuer') {
-        payload['rescuer_id'] = userId;
-      } else if (_role == 'shelter') {
-        payload['shelter_id'] = userId;
-      } else if (_role == 'admin') {
-        // Default admin-owned listings go under shelter_id for visibility
-        payload['shelter_id'] = userId;
+      // Tag ownership based on role when creating
+      if (!_isEditing) {
+        if (_role == 'rescuer') {
+          payload['rescuer_id'] = userId;
+        } else if (_role == 'shelter') {
+          payload['shelter_id'] = userId;
+        } else if (_role == 'admin') {
+          payload['shelter_id'] = userId;
+        }
       }
 
-      final created =
-          await _supabase
-              .from('animal')
-              .insert(payload)
-              .select(
-                'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, shelter_id, rescuer_id, link_picture',
-              )
-              .single();
-
-      if (!mounted) return;
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Listing created!'),
-          backgroundColor: _accent,
-        ),
-      );
+      if (_isEditing) {
+        await _supabase
+            .from('animal')
+            .update(payload)
+            .eq('animal_id', widget.petToEdit!.animalId);
+        success = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Listing updated'),
+              backgroundColor: _accent,
+            ),
+          );
+        }
+      } else {
+        await _supabase
+            .from('animal')
+            .insert(payload)
+            .select(
+              'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, shelter_id, rescuer_id, link_picture',
+            )
+            .single();
+        success = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Listing created!'),
+              backgroundColor: _accent,
+            ),
+          );
+        }
+      }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not save listing: $e'),
@@ -180,6 +242,7 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
         setState(() => _isSubmitting = false);
       }
     }
+    return success;
   }
 
   Future<void> _openHealthDraft() async {
@@ -211,6 +274,60 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
 
     if (draft == null || !mounted) return;
     setState(() => _healthDraft = draft);
+  }
+
+  Future<void> _deleteListing() async {
+    if (!_isEditing || _isDeleting) return;
+    final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Delete animal?'),
+            content: const Text(
+              'This will permanently delete the animal profile and its listing.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirm) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await _supabase
+          .from('animal')
+          .delete()
+          .eq('animal_id', widget.petToEdit!.animalId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Animal profile deleted'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      Navigator.of(context).maybePop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not delete: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
+    }
   }
 
   Future<void> _pickImages() async {
@@ -408,10 +525,12 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     const double navHeight = 86;
+    final String heading =
+        _isEditing ? 'Review Animal Listing' : 'Post Your Animal';
 
-    return Container(
-      color: _bg,
-      child: Stack(
+    return Scaffold(
+      backgroundColor: _bg,
+      body: Stack(
         children: [
           SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
@@ -425,9 +544,9 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
               children: [
                 const _TopBar(),
                 const SizedBox(height: 4),
-                const Text(
-                  'Post Your Animal',
-                  style: TextStyle(
+                Text(
+                  heading,
+                  style: const TextStyle(
                     color: _primary,
                     fontSize: 30,
                     fontWeight: FontWeight.w700,
@@ -438,8 +557,10 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                 const SizedBox(height: 20),
                 _PhotoCard(
                   imageBytes: _selectedImageBytes,
+                  existingImageUrls: _prefilledImageUrls,
                   onAdd: _pickImages,
                   onRemove: _removeImageAt,
+                  isEditing: _isEditing,
                 ),
                 const SizedBox(height: 28),
                 Form(
@@ -540,47 +661,88 @@ class _CreateAnimalPageState extends State<CreateAnimalPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0ACF83),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0ACF83),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _isSubmitting
+                                  ? null
+                                  : () async {
+                                      final ok = await _submit();
+                                      if (!mounted || !ok) return;
+                                      if (_isEditing) {
+                                        Navigator.of(context).maybePop();
+                                      } else {
+                                        Navigator.of(context, rootNavigator: true)
+                                            .pushNamedAndRemoveUntil(
+                                          '/home',
+                                          (route) => false,
+                                        );
+                                      }
+                                    },
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation(Colors.white),
+                                      ),
+                                    )
+                                  : Text(
+                                      _isEditing ? 'UPDATE LISTING' : 'CONFIRM',
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: -0.01,
+                                      ),
+                                    ),
                             ),
                           ),
-                          onPressed: _isSubmitting
-                              ? null
-                              : () {
-                                  _submit();
-                                  Navigator.of(context, rootNavigator: true)
-                                      .pushNamedAndRemoveUntil(
-                                    '/home',
-                                    (route) => false,
-                                  );
-                                },
-                          child:
-                              _isSubmitting
-                                  ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor:
-                                          AlwaysStoppedAnimation(Colors.white),
-                                    ),
-                                  )
-                                  : const Text(
-                                    'CONFIRM',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w400,
-                                      letterSpacing: -0.01,
-                                    ),
+                          if (_isEditing) ...[
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: OutlinedButton(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.red,
+                                  side: const BorderSide(color: Colors.red),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                        ),
+                                ),
+                                onPressed: _isDeleting ? null : _deleteListing,
+                                child: _isDeleting
+                                    ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation(Colors.red),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'DELETE ANIMAL PROFILE',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ],
                   ),
@@ -637,15 +799,21 @@ class _PhotoCard extends StatelessWidget {
     required this.onAdd,
     required this.onRemove,
     required this.imageBytes,
+    this.existingImageUrls = const [],
+    this.isEditing = false,
   });
 
   final VoidCallback onAdd;
   final ValueChanged<int> onRemove;
   final List<Uint8List> imageBytes;
+  final List<String> existingImageUrls;
+  final bool isEditing;
 
   @override
   Widget build(BuildContext context) {
-    final hasImages = imageBytes.isNotEmpty;
+    final hasNewImages = imageBytes.isNotEmpty;
+    final hasExistingImages = existingImageUrls.isNotEmpty;
+    final hasImages = hasNewImages || hasExistingImages;
     return Container(
       width: double.infinity,
       height: 228,
@@ -666,11 +834,18 @@ class _PhotoCard extends StatelessWidget {
                 spacing: 12,
                 runSpacing: 12,
                 children: List.generate(
-                  imageBytes.length,
-                  (index) => _PhotoThumb(
-                    bytes: imageBytes[index],
-                    onRemove: () => onRemove(index),
-                  ),
+                  hasNewImages ? imageBytes.length : existingImageUrls.length,
+                  (index) {
+                    final bytes =
+                        hasNewImages ? imageBytes[index] : null;
+                    final url =
+                        hasNewImages ? null : existingImageUrls[index];
+                    return _PhotoThumb(
+                      bytes: bytes,
+                      networkUrl: url,
+                      onRemove: hasNewImages ? () => onRemove(index) : null,
+                    );
+                  },
                 ),
               ),
             ),
@@ -689,7 +864,11 @@ class _PhotoCard extends StatelessWidget {
                 ),
                 onPressed: onAdd,
                 child: Text(
-                  hasImages ? 'add photos' : 'upload photos',
+                  isEditing
+                      ? 'change image'
+                      : hasImages
+                          ? 'add photos'
+                          : 'upload photos',
                   style: const TextStyle(
                     color: Colors.black,
                     fontSize: 10,
@@ -705,7 +884,7 @@ class _PhotoCard extends StatelessWidget {
               top: 12,
               right: 14,
               child: Text(
-                '${imageBytes.length}/3',
+                '${hasNewImages ? imageBytes.length : existingImageUrls.length}/3',
                 style: const TextStyle(
                   color: Colors.black54,
                   fontSize: 12,
@@ -720,35 +899,51 @@ class _PhotoCard extends StatelessWidget {
 }
 
 class _PhotoThumb extends StatelessWidget {
-  const _PhotoThumb({required this.bytes, required this.onRemove});
+  const _PhotoThumb({
+    this.bytes,
+    this.networkUrl,
+    this.onRemove,
+  });
 
-  final Uint8List bytes;
-  final VoidCallback onRemove;
+  final Uint8List? bytes;
+  final String? networkUrl;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context) {
+    final imageWidget = bytes != null
+        ? Image.memory(bytes!, width: 86, height: 86, fit: BoxFit.cover)
+        : networkUrl != null
+            ? Image.network(
+                networkUrl!,
+                width: 86,
+                height: 86,
+                fit: BoxFit.cover,
+              )
+            : const SizedBox.shrink();
     return Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: Image.memory(bytes, width: 86, height: 86, fit: BoxFit.cover),
+          child: imageWidget,
         ),
-        Positioned(
-          top: 2,
-          right: 2,
-          child: GestureDetector(
-            onTap: onRemove,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                shape: BoxShape.circle,
+        if (onRemove != null)
+          Positioned(
+            top: 2,
+            right: 2,
+            child: GestureDetector(
+              onTap: onRemove,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.close, size: 14, color: Colors.white),
               ),
-              child: const Icon(Icons.close, size: 14, color: Colors.white),
             ),
           ),
-        ),
       ],
     );
   }

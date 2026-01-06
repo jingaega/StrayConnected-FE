@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart' as gc;
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:strayconnected/data/auth_repository.dart';
-import 'package:strayconnected/screens/update_health_page.dart';
+import 'package:strayconnected/screens/edit_animal_page.dart';
+import 'package:strayconnected/screens/our_animals_page.dart';
+import 'package:strayconnected/screens/pet_profile_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -138,181 +140,243 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
     final followers = (_shelter?['followers'] as int?) ?? 0;
     final locationShort = _shortLocation(location);
     final credentialsUrl = (_shelter?['credentials_url'] as String?)?.trim();
-    final isVerified = credentialsUrl != null && credentialsUrl.isNotEmpty;
+    final hasCredentials =
+        credentialsUrl != null && credentialsUrl.isNotEmpty;
+    final isVerified = _shelter?['is_verified'] == true;
+    final validationLabel =
+        isVerified
+            ? 'Verified'
+            : hasCredentials
+                ? 'Pending'
+                : 'Unverified';
+    final validationColor =
+        isVerified
+            ? const Color(0xFF5B30B5)
+            : hasCredentials
+                ? Colors.orange
+                : Colors.redAccent;
+    final validationIcon =
+        isVerified ? Icons.check : Icons.warning_amber_rounded;
+    final validationInfo =
+        isVerified
+            ? 'Verified by StrayConnected'
+            : hasCredentials
+                ? 'Awaiting admin approval'
+                : 'No credentials uploaded';
     final description = (_shelter?['description'] as String?)?.trim() ?? '';
 
-    return Container(
-      color: _shelterProfileBg,
-      child: Stack(
-        children: [
-          RefreshIndicator(
-            onRefresh: _load,
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromRGBO(0, 0, 0, 0.08),
-                          blurRadius: 16,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                      borderRadius: BorderRadius.all(Radius.circular(18)),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _TopBar(
-                          handle: '',
-                          onSettings: () =>
-                              Navigator.pushNamed(context, '/profile'),
-                        ),
-                        const SizedBox(height: 18),
-                        if (_loading)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(vertical: 32),
-                              child: CircularProgressIndicator(
-                                color: Color(0xFF5B30B5),
-                              ),
-                            ),
-                          )
-                        else if (_error != null)
-                          _ErrorCard(message: _error ?? '')
-                        else ...[
-                          _HeaderIdentity(
-                            name: name,
-                            status: status,
-                            isVerified: isVerified,
-                          ),
-                          const SizedBox(height: 14),
-                          _MetaRow(
-                            icon: Icons.calendar_today_outlined,
-                            text: establishedAt == 'Not provided'
-                                ? 'Established -'
-                                : 'Established $establishedAt',
-                          ),
-                          const SizedBox(height: 8),
-                          _MetaRow(
-                            icon: Icons.schedule_outlined,
-                            text: openRange.isEmpty ? 'Hours -' : openRange,
-                          ),
-                          const SizedBox(height: 8),
-                          _MetaRow(
-                            icon: Icons.place_outlined,
-                            text: locationShort.isEmpty
-                                ? 'Location -'
-                                : locationShort,
-                            textColor: locationShort.isEmpty
-                                ? _shelterProfileMuted
-                                : const Color(0xFF0BCE83),
-                            trailing: locationShort.isEmpty
-                                ? null
-                                : const Icon(
-                                    Icons.circle,
-                                    size: 8,
-                                    color: _shelterProfileAccent,
-                                  ),
-                            onTap: location.isEmpty
-                                ? null
-                                : () => _openMap(context, location),
-                          ),
-                          const SizedBox(height: 16),
-                          if (description.isNotEmpty) ...[
-                            const _SectionSpacer(),
-                            const _SectionTitleText('About'),
-                            const SizedBox(height: 8),
-                            Text(
-                              description,
-                              style: const TextStyle(
-                                color: _shelterProfileMuted,
-                                fontSize: 13,
-                                height: 1.4,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          _ActionRow(
-                            isOwner: _canEdit,
-                            followers: followers,
-                            onEdit: () => Navigator.pushNamed(
-                              context,
-                              '/shelterProfileEdit',
-                            ),
-                            onShare: () {},
-                            onFollow: () {},
+    return Scaffold(
+      backgroundColor: _shelterProfileBg,
+      body: Material(
+        color: Colors.transparent,
+        child: Stack(
+          children: [
+            RefreshIndicator(
+              onRefresh: _load,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color.fromRGBO(0, 0, 0, 0.08),
+                            blurRadius: 16,
+                            offset: Offset(0, 8),
                           ),
                         ],
-                      ],
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _TopBar(
+                            handle: '',
+                            onSettings: () =>
+                                Navigator.pushNamed(context, '/profile'),
+                          ),
+                          const SizedBox(height: 18),
+                          if (_loading)
+                            const Center(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: 32),
+                                child: CircularProgressIndicator(
+                                  color: Color(0xFF5B30B5),
+                                ),
+                              ),
+                            )
+                          else if (_error != null)
+                            _ErrorCard(message: _error ?? '')
+                          else ...[
+                            _HeaderIdentity(
+                              name: name,
+                              status: status,
+                              isVerified: isVerified,
+                              hasCredentials: hasCredentials,
+                              validationLabel: validationLabel,
+                              validationColor: validationColor,
+                              validationIcon: validationIcon,
+                              validationInfo: validationInfo,
+                            ),
+                            const SizedBox(height: 14),
+                            _MetaRow(
+                              icon: Icons.calendar_today_outlined,
+                              text: establishedAt == 'Not provided'
+                                  ? 'Established -'
+                                  : 'Established $establishedAt',
+                            ),
+                            const SizedBox(height: 8),
+                            _MetaRow(
+                              icon: Icons.schedule_outlined,
+                              text: openRange.isEmpty ? 'Hours -' : openRange,
+                            ),
+                            const SizedBox(height: 8),
+                            _MetaRow(
+                              icon: Icons.place_outlined,
+                              text: locationShort.isEmpty
+                                  ? 'Location -'
+                                  : locationShort,
+                              textColor: locationShort.isEmpty
+                                  ? _shelterProfileMuted
+                                  : const Color(0xFF0BCE83),
+                              trailing: locationShort.isEmpty
+                                  ? null
+                                  : const Icon(
+                                      Icons.circle,
+                                      size: 8,
+                                      color: _shelterProfileAccent,
+                                    ),
+                              onTap: location.isEmpty
+                                  ? null
+                                  : () => _openMap(context, location),
+                            ),
+                            const SizedBox(height: 16),
+                            if (description.isNotEmpty) ...[
+                              const _SectionSpacer(),
+                              const _SectionTitleText('About'),
+                              const SizedBox(height: 8),
+                              Text(
+                                description,
+                                style: const TextStyle(
+                                  color: _shelterProfileMuted,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            _ActionRow(
+                              isOwner: _canEdit,
+                              followers: followers,
+                              onEdit: () => Navigator.pushNamed(
+                                context,
+                                '/shelterProfileEdit',
+                              ),
+                              onShare: () {},
+                              onFollow: () {},
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                    decoration: const BoxDecoration(
-                      color: _shelterProfileBg,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromRGBO(0, 0, 0, 0.06),
-                          blurRadius: 18,
-                          offset: Offset(0, -4),
-                        ),
-                      ],
-                      borderRadius: BorderRadius.all(Radius.circular(18)),
+                    Container(
+                      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      decoration: const BoxDecoration(
+                        color: _shelterProfileBg,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color.fromRGBO(0, 0, 0, 0.06),
+                            blurRadius: 18,
+                            offset: Offset(0, -4),
+                          ),
+                        ],
+                        borderRadius: BorderRadius.all(Radius.circular(18)),
+                      ),
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _SectionHeader(
+                            title: 'Available for Adoption',
+                            subtitle: '(${_animals.length})',
+                            showViewAll: false,
+                            onViewAll: () {},
+                          ),
+                          const SizedBox(height: 12),
+                          if (_animalsError != null)
+                            Text(
+                              'Could not load animals: $_animalsError',
+                              style: const TextStyle(color: Colors.redAccent),
+                            )
+                          else if (_animals.isEmpty)
+                            const _EmptyAnimals()
+                          else
+                            _AnimalGrid(animals: _animals, canEdit: _canEdit),
+                          if (_animals.length > 2) ...[
+                            const SizedBox(height: 12),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  final shelterId =
+                                      _targetShelterId ??
+                                      _shelter?['shelter_id']?.toString();
+                                  if (shelterId == null || shelterId.isEmpty) {
+                                    return;
+                                  }
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder:
+                                          (_) =>
+                                              OurAnimalsPage(shelterId: shelterId),
+                                    ),
+                                  );
+                                },
+                                child: const Text(
+                                  'View all animals >',
+                                  style: TextStyle(
+                                    color: Color(0xFF5B30B5),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _SectionHeader(
-                          title: 'Available for Adoption',
-                          subtitle: '(${_animals.length})',
-                          showViewAll: _animals.length > 2,
-                          onViewAll: () {},
-                        ),
-                        const SizedBox(height: 12),
-                        if (_animalsError != null)
-                          Text(
-                            'Could not load animals: $_animalsError',
-                            style: const TextStyle(color: Colors.redAccent),
-                          )
-                        else if (_animals.isEmpty)
-                          const _EmptyAnimals()
-                        else
-                          _AnimalGrid(animals: _animals),
-                      ],
-                    ),
-                  ),
-                  SizedBox(height: navHeight + 16 + paddingBottom),
-                ],
+                    SizedBox(height: navHeight + 16 + paddingBottom),
+                  ],
+                ),
               ),
             ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: RoleAwareBottomNav(
-              onCreateAllowed: () =>
-                  Navigator.pushNamed(context, '/createAnimal'),
-              onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-              onMessages: () => Navigator.pushReplacementNamed(context, '/chats'),
-              onMeetings: () =>
-                  Navigator.pushReplacementNamed(context, '/meetings'),
-              onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
-              onShelterProfile: () =>
-                  Navigator.pushReplacementNamed(context, '/shelterProfile'),
-              activeTab: BottomNavTab.profile,
-              showCreate: _canEdit,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: RoleAwareBottomNav(
+                onCreateAllowed: () =>
+                    Navigator.pushNamed(context, '/createAnimal'),
+                onHome: () => Navigator.pushReplacementNamed(context, '/home'),
+                onMessages: () =>
+                    Navigator.pushReplacementNamed(context, '/chats'),
+                onMeetings: () =>
+                    Navigator.pushReplacementNamed(context, '/meetings'),
+                onProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/profile'),
+                onShelterProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
+                activeTab: BottomNavTab.profile,
+                showCreate: _canEdit,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -459,11 +523,21 @@ class _HeaderIdentity extends StatelessWidget {
     required this.name,
     required this.status,
     required this.isVerified,
+    required this.hasCredentials,
+    required this.validationLabel,
+    required this.validationColor,
+    required this.validationIcon,
+    required this.validationInfo,
   });
 
   final String name;
   final String status;
   final bool isVerified;
+  final bool hasCredentials;
+  final String validationLabel;
+  final Color validationColor;
+  final IconData validationIcon;
+  final String validationInfo;
 
   @override
   Widget build(BuildContext context) {
@@ -497,11 +571,22 @@ class _HeaderIdentity extends StatelessWidget {
               child: Container(
                 width: 24,
                 height: 24,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0BCE83),
+                decoration: BoxDecoration(
+                  color:
+                      isVerified
+                          ? const Color(0xFF0BCE83)
+                          : hasCredentials
+                              ? Colors.orange
+                              : Colors.redAccent,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, size: 14, color: Colors.white),
+                child: Icon(
+                  isVerified
+                      ? Icons.check
+                      : Icons.warning_amber_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -546,17 +631,13 @@ class _HeaderIdentity extends StatelessWidget {
                     iconSize: 8,
                   ),
                   _StatusPill(
-                    label: isVerified ? 'Verified' : 'Unverified',
-                    color:
-                        isVerified ? const Color(0xFF5B30B5) : const Color(0xFFE26D6D),
-                    icon:
-                        isVerified ? Icons.check : Icons.warning_amber_rounded,
-                    iconSize: isVerified ? 12 : 14,
+                    label: validationLabel,
+                    color: validationColor,
+                    icon: validationIcon,
+                    iconSize: validationLabel == 'Verified' ? 12 : 14,
                     showInfo: true,
                     outlined: true,
-                    infoMessage: isVerified
-                        ? 'Verified by StrayConnected'
-                        : 'Credentials not uploaded',
+                    infoMessage: validationInfo,
                   ),
                 ],
               ),
@@ -688,7 +769,13 @@ class _MetaRow extends StatelessWidget {
             ),
           ),
           ),
-          if (trailing != null) trailing!,
+          if (trailing != null)
+            Flexible(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: trailing!,
+              ),
+            ),
         ],
       ),
     );
@@ -829,39 +916,49 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2D0C57),
-                ),
+        Row(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF2D0C57),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: _shelterProfileMuted,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: _shelterProfileMuted,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
         if (showViewAll)
-          TextButton(
-            onPressed: onViewAll,
-            child: const Text(
-              'View all animals >',
-              style: TextStyle(
-                color: Color(0xFF5B30B5),
-                fontWeight: FontWeight.w600,
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: onViewAll,
+              child: const Text(
+                'View all animals >',
+                style: TextStyle(
+                  color: Color(0xFF5B30B5),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -871,8 +968,9 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _AnimalGrid extends StatelessWidget {
-  const _AnimalGrid({required this.animals});
+  const _AnimalGrid({required this.animals, required this.canEdit});
   final List<Pet> animals;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -888,21 +986,26 @@ class _AnimalGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final pet = animals[index];
-        return _AnimalCard(pet: pet);
+        return _AnimalCard(pet: pet, canEdit: canEdit);
       },
     );
   }
 }
 
 class _AnimalCard extends StatelessWidget {
-  const _AnimalCard({required this.pet});
+  const _AnimalCard({required this.pet, required this.canEdit});
   final Pet pet;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => UpdateHealthPage(pet: pet)),
+        MaterialPageRoute(
+          builder:
+              (_) =>
+                  canEdit ? EditAnimalPage(pet: pet) : PetProfilePage(pet: pet),
+        ),
       ),
       child: Container(
         decoration: BoxDecoration(

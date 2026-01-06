@@ -104,7 +104,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     const double navHeight = 86;
     final name = (_profile?['name'] as String?)?.trim();
-    final role = (_profile?['role'] as String?) ?? 'User';
+    final role = ((_profile?['role'] as String?) ?? 'User').trim();
+    final isAdmin = role.toLowerCase() == 'admin';
     final email = (_profile?['email'] as String?) ?? '';
     final idText = (_profile?['id'] as String?) ?? 'Member ID unavailable';
 
@@ -165,6 +166,23 @@ class _ProfilePageState extends State<ProfilePage> {
                   else
                     Column(
                       children: [
+                        if (isAdmin) ...[
+                          _SettingsCard(
+                            children: [
+                              _SettingsTile(
+                                icon: Icons.admin_panel_settings_outlined,
+                                iconColor: const Color(0xFF5B30B5),
+                                title: 'Admin Console',
+                                subtitle: 'Manage users, animals, and meetings',
+                                onTap: () => Navigator.pushNamed(
+                                  context,
+                                  '/admin',
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         _SettingsCard(
                           children: [
                             _SettingsTile(

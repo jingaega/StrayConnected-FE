@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:strayconnected/screens/edit_animal_page.dart';
+import 'package:strayconnected/screens/pet_profile_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
@@ -9,18 +9,18 @@ const Color _primary = Color(0xFF2D0C57);
 const Color _muted = Color(0xFF9586A8);
 const Color _stroke = Color(0xFFD8D0E3);
 
-class MyAnimalsPage extends StatefulWidget {
-  const MyAnimalsPage({super.key});
+class OurAnimalsPage extends StatefulWidget {
+  const OurAnimalsPage({super.key, required this.shelterId});
+
+  final String shelterId;
 
   @override
-  State<MyAnimalsPage> createState() => _MyAnimalsPageState();
+  State<OurAnimalsPage> createState() => _OurAnimalsPageState();
 }
 
-class _MyAnimalsPageState extends State<MyAnimalsPage> {
+class _OurAnimalsPageState extends State<OurAnimalsPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
-  final TextEditingController _searchCtrl = TextEditingController();
 
-  String _role = 'user';
   bool _loading = true;
   String? _error;
   List<Pet> _animals = const [];
@@ -28,57 +28,22 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
   @override
   void initState() {
     super.initState();
-    _loadRoleAndAnimals();
+    _loadAnimals();
   }
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadRoleAndAnimals() async {
+  Future<void> _loadAnimals() async {
     setState(() {
       _loading = true;
       _error = null;
     });
-    final uid = _supabase.auth.currentUser?.id;
-    if (uid == null) {
-      setState(() {
-        _role = 'user';
-        _animals = const [];
-        _loading = false;
-      });
-      return;
-    }
-
-    String role = 'user';
     try {
-      final data =
-          await _supabase.from('user').select('role').eq('id', uid).maybeSingle();
-      role = (data?['role'] as String?) ?? 'user';
-    } catch (_) {
-      role = 'user';
-    }
-
-    if (role != 'rescuer' && role != 'shelter') {
-      setState(() {
-        _role = role;
-        _animals = const [];
-        _loading = false;
-      });
-      return;
-    }
-
-    try {
-      final filterColumn = role == 'rescuer' ? 'rescuer_id' : 'shelter_id';
       final response =
           await _supabase
               .from('animal')
               .select(
                 'animal_id, name, age, breed, species, description, health_status, shelter_id, rescuer_id, link_picture',
               )
-              .eq(filterColumn, uid)
+              .eq('shelter_id', widget.shelterId)
               .order('animal_id', ascending: false);
 
       final list = (response as List)
@@ -87,34 +52,22 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
 
       if (!mounted) return;
       setState(() {
-        _role = role;
         _animals = list;
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _role = role;
         _error = e.toString();
         _loading = false;
       });
     }
   }
 
-  List<Pet> get _filtered {
-    final q = _searchCtrl.text.trim().toLowerCase();
-    if (q.isEmpty) return _animals;
-    return _animals.where((p) {
-      bool matches(String? s) => s != null && s.toLowerCase().contains(q);
-      return matches(p.name) || matches(p.breed) || matches(p.species);
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     final paddingBottom = MediaQuery.of(context).padding.bottom;
     const double navHeight = 86;
-    final isOwner = _role == 'rescuer' || _role == 'shelter';
 
     return Scaffold(
       backgroundColor: _bg,
@@ -122,25 +75,33 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
         child: Stack(
           children: [
             RefreshIndicator(
-              onRefresh: _loadRoleAndAnimals,
+              onRefresh: _loadAnimals,
               child: ListView(
-                padding: EdgeInsets.fromLTRB(20, 12, 20, navHeight + 24 + paddingBottom),
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  12,
+                  20,
+                  navHeight + 24 + paddingBottom,
+                ),
                 children: [
-                  const SizedBox(height: 4),
-                  const Text(
-                    'My Animals',
-                    style: TextStyle(
-                      color: _primary,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w700,
-                      height: 1.21,
-                      letterSpacing: 0.41,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  _SearchField(
-                    controller: _searchCtrl,
-                    onChanged: () => setState(() {}),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back, color: _primary),
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Our Animals',
+                        style: TextStyle(
+                          color: _primary,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   if (_loading)
@@ -148,14 +109,6 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 48),
                         child: CircularProgressIndicator(),
-                      ),
-                    )
-                  else if (!isOwner)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 32),
-                      child: Text(
-                        'Only rescuers or shelters can view their animals.',
-                        style: const TextStyle(color: _muted),
                       ),
                     )
                   else if (_error != null)
@@ -166,7 +119,7 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
                         style: const TextStyle(color: Colors.red),
                       ),
                     )
-                  else if (_filtered.isEmpty)
+                  else if (_animals.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 32),
                       child: Text(
@@ -175,7 +128,7 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
                       ),
                     )
                   else
-                    _AnimalGrid(animals: _filtered),
+                    _AnimalGrid(animals: _animals),
                 ],
               ),
             ),
@@ -184,48 +137,21 @@ class _MyAnimalsPageState extends State<MyAnimalsPage> {
               right: 0,
               bottom: 0,
               child: RoleAwareBottomNav(
-                onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
+                onCreateAllowed: () =>
+                    Navigator.pushNamed(context, '/createAnimal'),
                 onHome: () => Navigator.pushReplacementNamed(context, '/home'),
                 onMessages: () =>
                     Navigator.pushReplacementNamed(context, '/chats'),
                 onMeetings: () =>
                     Navigator.pushReplacementNamed(context, '/meetings'),
-                onProfile: () => Navigator.pushReplacementNamed(context, '/profile'),
+                onProfile: () =>
+                    Navigator.pushReplacementNamed(context, '/profile'),
                 onShelterProfile: () =>
                     Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.home,
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.onChanged});
-  final TextEditingController controller;
-  final VoidCallback onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      onChanged: (_) => onChanged(),
-      decoration: InputDecoration(
-        hintText: 'Search',
-        prefixIcon: const Icon(Icons.search, color: _muted),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(27),
-          borderSide: const BorderSide(color: _stroke, width: 1),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(27),
-          borderSide: const BorderSide(color: _primary, width: 1.3),
         ),
       ),
     );
@@ -264,7 +190,7 @@ class _AnimalCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => EditAnimalPage(pet: pet)),
+        MaterialPageRoute(builder: (_) => PetProfilePage(pet: pet)),
       ),
       child: Container(
         decoration: BoxDecoration(
@@ -304,11 +230,13 @@ class _AnimalCard extends StatelessWidget {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(12, 0, 12, 8),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Text(
-                'edit',
-                style: TextStyle(
+                _animalMeta(pet),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
                   color: _muted,
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -319,5 +247,18 @@ class _AnimalCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _animalMeta(Pet pet) {
+    final parts = <String>[];
+    if (pet.breed != null && pet.breed!.isNotEmpty) {
+      parts.add(pet.breed!.trim());
+    } else if (pet.species != null && pet.species!.isNotEmpty) {
+      parts.add(pet.species!.trim());
+    }
+    if (pet.age != null) {
+      parts.add(pet.ageLabelShort);
+    }
+    return parts.isEmpty ? 'Unknown' : parts.join(' - ');
   }
 }

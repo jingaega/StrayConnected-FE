@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/data/auth_repository.dart';
-import 'package:strayconnected/widgets/global_bottom_nav.dart';
+import 'package:strayconnected/screens/admin_console_page.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
 const Color _primary = Color(0xFF2D0C57);
@@ -9,7 +8,6 @@ const Color _muted = Color(0xFF9586A8);
 const Color _purple = Color(0xFF5B30B5);
 const Color _green = Color(0xFF0BCE83);
 const Color _stroke = Color(0xFFD8D0E3);
-const List<String> _roleOptions = ['adopter', 'rescuer', 'shelter', 'admin'];
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -20,145 +18,94 @@ class AdminPage extends StatefulWidget {
 
 class _AdminPageState extends State<AdminPage> {
   final AuthRepository _auth = AuthRepository();
-  final SupabaseClient _supabase = Supabase.instance.client;
 
   bool _checkingRole = true;
   bool _authorized = false;
-  bool _loadingData = false;
   String? _error;
 
-  List<Map<String, dynamic>> _users = const [];
-  List<Map<String, dynamic>> _animals = const [];
-  List<Map<String, dynamic>> _meetings = const [];
-  final Set<String> _updatingUsers = {};
-  final Set<String> _removingUsers = {};
-  final Set<int> _removingAnimals = {};
-  final Set<int> _updatingMeetings = {};
-
-  Future<void> _changeUserRole(String userId, String newRole) async {
-    if (userId.isEmpty) return;
-    setState(() => _updatingUsers.add(userId));
-    try {
-      await _supabase
-          .from('user')
-          .update({'role': newRole})
-          .eq('id', userId);
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Role updated to $newRole'),
-            backgroundColor: _purple,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update role: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _updatingUsers.remove(userId));
-      }
-    }
+  void _monitorListings() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const AdminConsolePage(),
+      ),
+    );
   }
 
-  Future<void> _removeUser(String userId) async {
-    if (userId.isEmpty) return;
-    setState(() => _removingUsers.add(userId));
-    try {
-      await _supabase.from('user').delete().eq('id', userId);
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('User removed'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to remove user: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _removingUsers.remove(userId));
-      }
-    }
+  void _openHealthValidation() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Validate Health Info',
+              style: TextStyle(
+                color: _primary,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Admins confirm or reject health updates. Mark as authentic when verified, or reject as incomplete/non-authentic.',
+              style: TextStyle(color: _muted),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Use uploaded PDF health reports as the source of truth before confirming.',
+              style: TextStyle(color: _muted, fontSize: 12.5),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: _green),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Health info marked as authentic'),
+                        backgroundColor: _green,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.verified_outlined),
+                  label: const Text('Confirm authentic'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Health info flagged as non-authentic'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.cancel_outlined),
+                  label: const Text('Reject'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  Future<void> _removeAnimal(int animalId) async {
-    if (animalId <= 0) return;
-    setState(() => _removingAnimals.add(animalId));
-    try {
-      await _supabase.from('animal').delete().eq('animal_id', animalId);
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Animal deleted'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to delete animal: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _removingAnimals.remove(animalId));
-      }
-    }
-  }
-
-  Future<void> _updateMeetingStatus(int meetingId, String status) async {
-    if (meetingId <= 0) return;
-    setState(() => _updatingMeetings.add(meetingId));
-    try {
-      await _supabase
-          .from('adoption_meeting')
-          .update({'status': status})
-          .eq('meeting_id', meetingId);
-      await _loadData();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Meeting status updated to $status'),
-            backgroundColor: _green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update meeting: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _updatingMeetings.remove(meetingId));
-      }
-    }
+  void _openPlatformOversight() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Validating shelter info from PDFs and monitoring listings'),
+        backgroundColor: _purple,
+      ),
+    );
   }
 
   @override
@@ -185,8 +132,9 @@ class _AdminPageState extends State<AdminPage> {
       }
       setState(() {
         _authorized = true;
+        _checkingRole = false;
+        _error = null;
       });
-      await _loadData();
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -195,169 +143,165 @@ class _AdminPageState extends State<AdminPage> {
     }
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _loadingData = true;
-      _error = null;
-      _checkingRole = false;
-    });
-    try {
-      final usersRaw = await _supabase
-          .from('user')
-          .select('id, name, email, role, created_at')
-          .order('created_at', ascending: false)
-          .limit(12);
-      final animalsRaw = await _supabase
-          .from('animal')
-          .select('animal_id, name, species, breed, health_status, link_picture')
-          .order('animal_id', ascending: false)
-          .limit(12);
-      final meetingsRaw = await _supabase
-          .from('adoption_meeting')
-          .select(
-            'meeting_id, status, date, time, animal_id, adopter_id, rescuer_id, shelter_id',
-          )
-          .order('meeting_id', ascending: false)
-          .limit(12);
-
-      if (!mounted) return;
-      setState(() {
-        _users = _toList(usersRaw);
-        _animals = _toList(animalsRaw);
-        _meetings = _toList(meetingsRaw);
-        _loadingData = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loadingData = false;
-      });
+  @override
+  Widget build(BuildContext context) {
+    if (_checkingRole) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: _purple),
+        ),
+      );
     }
-  }
 
-  List<Map<String, dynamic>> _toList(dynamic data) {
-    if (data is List) {
-      return data
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
+    if (!_authorized) {
+      return Scaffold(
+        backgroundColor: _bg,
+        body: SafeArea(
+          child: _AccessDenied(
+            error: _error,
+            onBack: () => Navigator.pop(context),
+          ),
+        ),
+      );
     }
-    return const [];
+
+    return const AdminConsolePage();
   }
+}
+
+class _GovernancePanel extends StatelessWidget {
+  const _GovernancePanel({
+    required this.onMonitorListings,
+    required this.onValidateHealth,
+    required this.onPlatformOversight,
+  });
+
+  final VoidCallback onMonitorListings;
+  final VoidCallback onValidateHealth;
+  final VoidCallback onPlatformOversight;
 
   @override
   Widget build(BuildContext context) {
-    const double navHeight = 86;
-    return Scaffold(
-      backgroundColor: _bg,
-      appBar: AppBar(
-        backgroundColor: _bg,
-        foregroundColor: _primary,
-        elevation: 0,
-        title: const Text(
-          'Admin Console',
-          style: TextStyle(
-            color: _primary,
-            fontWeight: FontWeight.w800,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _stroke),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.05),
+            blurRadius: 12,
+            offset: Offset(0, 6),
           ),
-        ),
+        ],
       ),
-      body: SafeArea(
-        child: Stack(
-          children: [
-            _checkingRole
-                ? const Center(child: CircularProgressIndicator(color: _purple))
-                : !_authorized
-                    ? _AccessDenied(
-                        error: _error,
-                        onBack: () => Navigator.pop(context),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            12,
-                            16,
-                            navHeight + 24 + MediaQuery.of(context).padding.bottom,
-                          ),
-                          child: Column(
-                            children: [
-                              _HeaderRow(
-                                loading: _loadingData,
-                                onRefresh: _loadData,
-                              ),
-                              const SizedBox(height: 12),
-                              _SummaryRow(
-                                users: _users.length,
-                                animals: _animals.length,
-                                meetings: _meetings.length,
-                              ),
-                              const SizedBox(height: 18),
-                              _AdminSection(
-                                title: 'Users',
-                                subtitle:
-                                    'Change roles (adopter/rescuer/shelter/admin)',
-                                child: _UserAdminList(
-                                  users: _users,
-                                  updating: _updatingUsers,
-                                  removing: _removingUsers,
-                                  onChangeRole: _changeUserRole,
-                                  onRemoveUser: _removeUser,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              _AdminSection(
-                                title: 'Animals',
-                                subtitle: 'Remove listings (destructive)',
-                                child: _AnimalAdminList(
-                                  animals: _animals,
-                                  removing: _removingAnimals,
-                                  onRemove: _removeAnimal,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              _AdminSection(
-                                title: 'Meetings',
-                                subtitle: 'Update meeting statuses',
-                                child: _MeetingAdminList(
-                                  meetings: _meetings,
-                                  updating: _updatingMeetings,
-                                  onUpdateStatus: _updateMeetingStatus,
-                                ),
-                              ),
-                              const SizedBox(height: 18),
-                              _HintCard(
-                                title: 'Need deeper controls?',
-                                body:
-                                    'Use Supabase SQL editor/policies for admin-only mutations. The client intentionally blocks role changes and admin creation.',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: RoleAwareBottomNav(
-                onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
-                onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-                onMessages: () =>
-                    Navigator.pushReplacementNamed(context, '/chats'),
-                onMeetings: () =>
-                    Navigator.pushReplacementNamed(context, '/meetings'),
-                onProfile: () =>
-                    Navigator.pushReplacementNamed(context, '/profile'),
-                onShelterProfile: () =>
-                    Navigator.pushReplacementNamed(context, '/shelterProfile'),
-                activeTab: BottomNavTab.profile,
-              ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Governance & Validation',
+            style: TextStyle(
+              color: _primary,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Monitor listings, validate health authenticity, and oversee platform compliance.',
+            style: TextStyle(color: _muted, fontSize: 13),
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: [
+              _ActionTile(
+                icon: Icons.fact_check_outlined,
+                color: _purple,
+                title: 'Monitor listings',
+                subtitle: 'Review/flag incorrect listings & support corrections',
+                onTap: onMonitorListings,
+              ),
+              const Divider(height: 16, color: _stroke),
+              _ActionTile(
+                icon: Icons.health_and_safety_outlined,
+                color: _green,
+                title: 'Validate health info',
+                subtitle:
+                    'Confirm authenticity from uploaded PDF health reports; reject if incomplete',
+                onTap: onValidateHealth,
+              ),
+              const Divider(height: 16, color: _stroke),
+              _ActionTile(
+                icon: Icons.verified_user_outlined,
+                color: Colors.orange,
+                title: 'Platform oversight',
+                subtitle: 'Validate shelter documentation from PDFs and monitor platform',
+                onTap: onPlatformOversight,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: _primary,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14.5,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: _muted, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: _muted),
+        ],
       ),
     );
   }
@@ -448,12 +392,10 @@ class _HeaderRow extends StatelessWidget {
 
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
-    required this.users,
     required this.animals,
     required this.meetings,
   });
 
-  final int users;
   final int animals;
   final int meetings;
 
@@ -461,15 +403,6 @@ class _SummaryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(
-          child: _SummaryCard(
-            label: 'Users',
-            value: users,
-            icon: Icons.group,
-            color: _purple,
-          ),
-        ),
-        const SizedBox(width: 10),
         Expanded(
           child: _SummaryCard(
             label: 'Animals',
@@ -607,155 +540,6 @@ class _AdminSection extends StatelessWidget {
           child,
         ],
       ),
-    );
-  }
-}
-
-class _UserAdminList extends StatelessWidget {
-  const _UserAdminList({
-    required this.users,
-    required this.updating,
-    required this.removing,
-    required this.onChangeRole,
-    required this.onRemoveUser,
-  });
-
-  final List<Map<String, dynamic>> users;
-  final Set<String> updating;
-  final Set<String> removing;
-  final Future<void> Function(String userId, String newRole) onChangeRole;
-  final Future<void> Function(String userId) onRemoveUser;
-
-  @override
-  Widget build(BuildContext context) {
-    if (users.isEmpty) {
-      return const Text('No records found', style: TextStyle(color: _muted));
-    }
-    return Column(
-      children: users.map((u) {
-        final id = (u['id'] ?? '').toString();
-        final role = (u['role'] ?? '').toString();
-        final disabled = updating.contains(id);
-        return Column(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: _purple.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.person, color: _purple),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        u['name'] ?? 'Unnamed user',
-                        style: const TextStyle(
-                          color: _primary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14.5,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                              u['email'] ?? '',
-                              style: const TextStyle(color: _muted, fontSize: 12.5),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 140),
-                        child: DropdownButton<String>(
-                          isDense: true,
-                          value: _roleOptions.contains(role)
-                              ? role
-                              : _roleOptions.first,
-                          onChanged: disabled
-                              ? null
-                              : (val) {
-                                  if (val != null) {
-                                    onChangeRole(id, val);
-                                  }
-                                },
-                          items: _roleOptions
-                              .map(
-                                (r) => DropdownMenuItem(
-                                  value: r,
-                                  child: Text(
-                                    r,
-                                    style: const TextStyle(fontSize: 12),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      TextButton.icon(
-                        onPressed: disabled || removing.contains(id)
-                            ? null
-                            : () async {
-                                final ok = await showDialog<bool>(
-                                      context: context,
-                                      builder: (ctx) => AlertDialog(
-                                        title: const Text('Remove user?'),
-                                        content: const Text(
-                                          'This will delete the user and related role records.',
-                                        ),
-                                        actions: [
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, false),
-                                            child: const Text('Cancel'),
-                                          ),
-                                          TextButton(
-                                            onPressed: () => Navigator.pop(ctx, true),
-                                            child: const Text(
-                                              'Delete',
-                                              style: TextStyle(color: Colors.red),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ) ??
-                                    false;
-                                if (ok) onRemoveUser(id);
-                              },
-                        icon: removing.contains(id)
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.delete_outline, color: Colors.red),
-                        label: const Text(
-                          'Remove',
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            if (u != users.last) const Divider(height: 18, color: _stroke),
-          ],
-        );
-      }).toList(),
     );
   }
 }

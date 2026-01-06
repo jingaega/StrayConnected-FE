@@ -79,7 +79,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           await _supabase
               .from('animal')
               .select(
-                'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, shelter_id, rescuer_id, link_picture',
+                'animal_id, name, age, breed, species, description, health_status, known_diseases, vaccination_certificate_url, vaccination_certificate_approved, shelter_id, rescuer_id, link_picture',
               )
               .eq('animal_id', widget.pet.animalId)
               .maybeSingle();
@@ -117,7 +117,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
       if (_pet.breed != null && _pet.breed!.isNotEmpty) _pet.breed!.trim(),
       if (_pet.species != null && _pet.species!.isNotEmpty)
         _pet.species!.trim(),
-    ].join(' • ');
+    ].join(' - ');
     final String detailLine = traits;
 
     final String descriptionText =
@@ -130,7 +130,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: navHeight + 140 + paddingBottom),
+            padding: EdgeInsets.only(bottom: navHeight + 40 + paddingBottom),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -157,64 +157,88 @@ class _PetProfilePageState extends State<PetProfilePage> {
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            left: 16,
-            right: 16,
-            bottom: navHeight + 16 + paddingBottom,
-            child: Row(
-              children: [
-                SizedBox(
-                  height: 56,
-                  width: 64,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: _stroke, width: 1.2),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      backgroundColor: Colors.white,
-                    ),
-                    onPressed: _contactLoading ? null : _handleContact,
-                    child:
-                        _contactLoading
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: _primary,
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          SizedBox(
+                            height: 56,
+                            width: 92,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: _stroke,
+                                  width: 1.2,
                                 ),
-                              )
-                            : const Icon(Icons.help_outline, color: _primary),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: SizedBox(
-                    height: 56,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _success,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                backgroundColor: Colors.white,
+                              ),
+                              onPressed:
+                                  _contactLoading ? null : _handleContact,
+                              child:
+                                  _contactLoading
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: _primary,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.chat_bubble_outline,
+                                          color: _primary,
+                                          size: 18,
+                                        ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: SizedBox(
+                              height: 56,
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _success,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                onPressed: () {
+                                  _handleArrangeAdoption();
+                                },
+                                child: const Text(
+                                  'ARRANGE ADOPTION',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: -0.01,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      const Padding(
+                        padding: EdgeInsets.only(left: 104),
+                        child: Text(
+                          '       No commitment yet - just schedule a meeting',
+                          style: TextStyle(
+                            color: _muted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
-                      onPressed: () {
-                        _handleArrangeAdoption();
-                      },
-                      child: const Text(
-                        'ARRANGE ADOPTION',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.01,
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -222,19 +246,7 @@ class _PetProfilePageState extends State<PetProfilePage> {
           ),
         ],
       ),
-      bottomNavigationBar: RoleAwareBottomNav(
-        onCreateAllowed: () => Navigator.pushNamed(context, '/createAnimal'),
-        onHome: () => Navigator.pushReplacementNamed(context, '/home'),
-        onMessages: () =>
-            Navigator.pushReplacementNamed(context, '/chats'),
-        onMeetings: () =>
-            Navigator.pushReplacementNamed(context, '/meetings'),
-        onProfile: () =>
-            Navigator.pushReplacementNamed(context, '/profile'),
-        onShelterProfile: () =>
-            Navigator.pushReplacementNamed(context, '/shelterProfile'),
-        activeTab: BottomNavTab.home,
-      ),
+      bottomNavigationBar: null,
     );
   }
 
@@ -560,12 +572,27 @@ class _InfoCard extends StatelessWidget {
       descriptionText,
       pet.name,
     );
-    final healthLabel = pet.displayHealthLabel;
+    final hasCertificate = pet.hasVaccinationCertificate;
+    final isApproved = pet.vaccinationCertificateApproved == true;
+    final validationLabel =
+        isApproved
+            ? 'Vaccination verified'
+            : hasCertificate
+                ? 'Vaccination pending approval'
+                : 'Vaccination unverified';
+    final validationColor =
+        isApproved
+            ? _success
+            : hasCertificate
+                ? Colors.orange
+                : Colors.redAccent;
+    final validationIcon =
+        isApproved ? Icons.verified_outlined : Icons.warning_amber_rounded;
 
     return Container(
       decoration: BoxDecoration(
         color: _cardColor,
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
             color: const Color.fromRGBO(0, 0, 0, 0.06),
@@ -575,48 +602,62 @@ class _InfoCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
+        padding: const EdgeInsets.fromLTRB(24, 26, 24, 26),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              pet.name,
-              style: const TextStyle(
-                color: _primary,
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                height: 1.25,
-              ),
-            ),
-            const SizedBox(height: 10),
             Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ageLabel,
-                  style: const TextStyle(
-                    color: _primary,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    detailLine,
+                    '${pet.name} - $ageLabel',
                     style: const TextStyle(
-                      color: _textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
+                      color: _primary,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
                     ),
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                const Icon(Icons.favorite_border, color: _muted, size: 18),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
+            Text(
+              detailLine.isEmpty ? 'Breed unknown' : detailLine,
+              style: const TextStyle(
+                color: _textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (hasCertificate || pet.vaccinationCertificateApproved != null) ...[
+              Row(
+                children: [
+                  Icon(
+                    validationIcon,
+                    size: 16,
+                    color: validationColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      validationLabel,
+                      style: TextStyle(
+                        color: validationColor,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 const Icon(Icons.place, size: 16, color: _muted),
@@ -647,44 +688,34 @@ class _InfoCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 14),
-            if (healthLabel != null) ...[
-              Text(
-                healthLabel,
-                style: const TextStyle(
-                  color: _success,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            if (isLoading) ...[
+            if (isLoading || loadError != null) ...[
               const SizedBox(height: 14),
-              Row(
-                children: const [
-                  SizedBox(
-                    height: 16,
-                    width: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Refreshing details…',
-                    style: TextStyle(color: _textSecondary, fontSize: 13),
-                  ),
-                ],
-              ),
+              if (isLoading)
+                Row(
+                  children: const [
+                    SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Refreshing details...',
+                      style: TextStyle(color: _textSecondary, fontSize: 13),
+                    ),
+                  ],
+                ),
+              if (loadError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Could not refresh from database: $loadError',
+                  style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                ),
+              ],
             ],
-            if (loadError != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Could not refresh from database: $loadError',
-                style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-              ),
-            ],
-            const SizedBox(height: 4),
+            const SizedBox(height: 20),
+            const Divider(height: 1, color: _stroke),
+            const SizedBox(height: 20),
             Text(
               descriptionParts.headline,
               style: const TextStyle(
@@ -693,32 +724,40 @@ class _InfoCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               descriptionParts.body,
               style: const TextStyle(
                 color: _muted,
-                fontSize: 15,
+                fontSize: 14,
                 fontWeight: FontWeight.w400,
                 height: 1.6,
               ),
             ),
             if (canViewShelter) ...[
-              const SizedBox(height: 16),
-              TextButton.icon(
+              const SizedBox(height: 20),
+              TextButton(
                 onPressed: onViewShelter,
-                icon: const Icon(Icons.storefront_outlined, color: _primary),
-                label: const Text(
-                  'View Shelter',
-                  style: TextStyle(
-                    color: _primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
                 style: TextButton.styleFrom(
                   foregroundColor: _primary,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'View Shelter',
+                      style: TextStyle(
+                        color: _primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward, size: 16, color: _primary),
+                  ],
                 ),
               ),
             ],

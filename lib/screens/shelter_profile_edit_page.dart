@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:strayconnected/data/auth_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ShelterProfileEditPage extends StatefulWidget {
   const ShelterProfileEditPage({super.key});
@@ -15,6 +16,10 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  bool _didInit = false;
+  String? _targetShelterId;
+  bool _isAdmin = false;
+  bool _isVerified = false;
 
   final _nameController = TextEditingController();
   final _locationController = TextEditingController();
@@ -32,6 +37,17 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didInit) return;
+    _didInit = true;
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is String && args.isNotEmpty) {
+      _targetShelterId = args;
+    }
     _load();
   }
 
@@ -60,17 +76,19 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
       }
       final role =
           (await _auth.getMyProfile())?['role']?.toString().toLowerCase();
-      if (role != 'shelter') {
+      _isAdmin = role == 'admin';
+      if (role != 'shelter' && !_isAdmin) {
         setState(() {
           _error = 'Shelter only';
           _loading = false;
         });
         return;
       }
+      final targetId = _targetShelterId ?? user.id;
       final data = await Supabase.instance.client
           .from('shelter')
           .select()
-          .eq('shelter_id', user.id)
+          .eq('shelter_id', targetId)
           .maybeSingle();
       _hydrateFields(data as Map<String, dynamic>?);
       setState(() => _loading = false);
@@ -91,6 +109,7 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
     _statusValue = (shelter['status'] as String?)?.trim();
     _credentialFileName = (shelter['credentials_url'] as String?)?.trim();
     _photoFileName = (shelter['shelter_photo_url'] as String?)?.trim();
+    _isVerified = shelter['is_verified'] == true;
     _openedOn = _parseDate(shelter['opened_on']);
     _createdAt = _parseDate(shelter['created_at']);
     _openTime = _parseTime(shelter['operating_hours_start']);
@@ -140,6 +159,13 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
   String get _createdAtLabel {
     if (_createdAt == null) return 'Not available';
     return _createdAt!.toIso8601String().split('T').first;
+  }
+
+  String get _credentialLabel {
+    if (_credentialFileName == null || _credentialFileName!.isEmpty) {
+      return 'No credential file';
+    }
+    return _credentialFileName!;
   }
 
   Future<void> _pickOpenedOn() async {
@@ -195,13 +221,51 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
     }
   }
 
+  Future<void> _viewCredentialFile() async {
+    final url = _credentialFileName;
+    if (url == null || url.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No credential file'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null || uri.scheme.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid credential file link'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not open credential file'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
   Future<void> _save() async {
     if (_saving) return;
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+    final targetId = _targetShelterId ?? user.id;
     setState(() => _saving = true);
     try {
       final payload = <String, dynamic>{
+        'shelter_id': targetId,
         'shelter_name': _nameController.text.trim(),
         'location': _locationController.text.trim(),
         'description': _descriptionController.text.trim().isEmpty
@@ -220,10 +284,7 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
         'shelter_photo_url': _photoFileName,
       };
 
-      await Supabase.instance.client
-          .from('shelter')
-          .update(payload)
-          .eq('shelter_id', user.id);
+      await Supabase.instance.client.from('shelter').upsert(payload);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -243,6 +304,37 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
       );
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _setVerification(bool approve) async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
+    final targetId = _targetShelterId ?? user.id;
+    try {
+      await Supabase.instance.client
+          .from('shelter')
+          .update({'is_verified': approve})
+          .eq('shelter_id', targetId);
+      setState(() {
+        _isVerified = approve;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve ? 'Shelter verified' : 'Verification removed'),
+          backgroundColor: approve ? Colors.green : Colors.redAccent,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update verification: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -320,6 +412,62 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
                   const _HelperText(
                     'This photo will be shown on your public shelter profile.',
                   ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _isVerified
+                              ? const Color(0x330ACF83)
+                              : const Color(0x33FF1744),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              _isVerified ? Icons.verified_outlined : Icons.report,
+                              size: 16,
+                              color: _isVerified
+                                  ? const Color(0xFF0ACF83)
+                                  : Colors.redAccent,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              _isVerified ? 'Verified' : 'Not verified',
+                              style: TextStyle(
+                                color: _isVerified
+                                    ? const Color(0xFF0ACF83)
+                                    : Colors.redAccent,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_isAdmin) ...[
+                        const SizedBox(width: 10),
+                        OutlinedButton(
+                          onPressed: () => _setVerification(true),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFF0ACF83)),
+                            foregroundColor: const Color(0xFF0ACF83),
+                          ),
+                          child: const Text('Approve'),
+                        ),
+                        const SizedBox(width: 6),
+                        OutlinedButton(
+                          onPressed: () => _setVerification(false),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Colors.redAccent),
+                            foregroundColor: Colors.redAccent,
+                          ),
+                          child: const Text('Reject'),
+                        ),
+                      ],
+                    ],
+                  ),
                   const SizedBox(height: 24),
                   const _SectionTitle('Shelter Details'),
                   const SizedBox(height: 10),
@@ -379,6 +527,36 @@ class _ShelterProfileEditPageState extends State<ShelterProfileEditPage> {
                   const Text(
                     'This name will be visible to adopters.',
                     style: TextStyle(color: Color(0xFF9586A8), fontSize: 12),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _LabeledBox(
+                          label: 'Credential file',
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            child: Text(
+                              _credentialLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF2D0C57),
+                                fontSize: 15,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton.icon(
+                        onPressed: _viewCredentialFile,
+                        icon: const Icon(Icons.picture_as_pdf_outlined),
+                        label: const Text('View credential'),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 14),
                   _LabeledBox(

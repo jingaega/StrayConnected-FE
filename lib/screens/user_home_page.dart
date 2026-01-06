@@ -740,6 +740,7 @@ class Pet {
   final String? healthStatus;
   final String? knownDiseases;
   final String? vaccinationCertificateUrl;
+  final bool? vaccinationCertificateApproved;
   final String? shelterId;
   final String? rescuerId;
   final String? linkPicture;
@@ -754,6 +755,7 @@ class Pet {
     this.healthStatus,
     this.knownDiseases,
     this.vaccinationCertificateUrl,
+    this.vaccinationCertificateApproved,
     this.shelterId,
     this.rescuerId,
     this.linkPicture,
@@ -803,6 +805,8 @@ class Pet {
       knownDiseases: map['known_diseases'] as String?,
       vaccinationCertificateUrl:
           map['vaccination_certificate_url'] as String?,
+      vaccinationCertificateApproved:
+          map['vaccination_certificate_approved'] as bool?,
       linkPicture: map['link_picture'] as String? ?? '',
       shelterId: map['shelter_id']?.toString(),
       rescuerId: map['rescuer_id']?.toString(),

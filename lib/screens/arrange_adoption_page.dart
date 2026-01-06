@@ -87,6 +87,18 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
       return;
     }
 
+    try {
+      await _supabase.from('adopter').upsert({'adopter_id': adopterId});
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not verify adopter profile: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
     final payload = <String, dynamic>{
       'adopter_id': adopterId,
       'animal_id': widget.pet.animalId,
