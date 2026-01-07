@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:strayconnected/screens/meeting_details_page.dart';
 import 'package:strayconnected/widgets/global_bottom_nav.dart';
 
 const Color _bg = Color(0xFFF6F5F5);
@@ -92,7 +93,7 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
         await _supabase
             .from('adoption_meeting')
             .select(
-              'meeting_id, date, time, status, animal:animal_id(name, link_picture), adopter_id, rescuer_id, shelter_id',
+              'meeting_id, date, time, status, meeting_type, contact_phone, animal:animal_id(name, link_picture), adopter_id, rescuer_id, shelter_id',
             )
             .eq(filterColumn, uid)
             .order('date', ascending: true)
@@ -184,11 +185,15 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
                         busy: _updating.contains(item.meetingId),
                         onAccept: () => _updateStatus(item, 'Accepted'),
                         onReject: () => _updateStatus(item, 'Rejected'),
-                        onReschedule: () => _updateStatus(item, 'Reschedule Requested'),
+                        onReschedule: _updating.contains(item.meetingId)
+                            ? null
+                            : () => _requestReschedule(item),
                         onChat: () => Navigator.pushReplacementNamed(context, '/chats'),
-                        onEdit: () => _showToast('Edit request coming soon'),
+                        onEdit: _updating.contains(item.meetingId)
+                            ? null
+                            : () => _editMeeting(item),
                         onCancel: () => _updateStatus(item, 'Cancelled'),
-                        onViewDetails: () => _showToast('Viewing details'),
+                        onViewDetails: () => _openDetails(item),
                       ),
                     ),
                 ],
@@ -259,6 +264,160 @@ class _MeetingRequestsPageState extends State<MeetingRequestsPage> {
       SnackBar(content: Text(msg)),
     );
   }
+
+  void _openDetails(MeetingItem item) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MeetingDetailsPage(
+          meetingId: item.meetingId,
+          status: item.status,
+          date: item.date,
+          time: item.time,
+          animalName: item.animalName,
+          animalImage: item.animalImage,
+          meetingType: item.meetingType,
+          contactPhone: item.contactPhone,
+          rescuerId: item.rescuerId,
+          shelterId: item.shelterId,
+          adopterId: item.adopterId,
+          role: _role,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _requestReschedule(MeetingItem item) async {
+    final picked = await _pickMeetingDateTime(item);
+    if (picked == null) return;
+
+    final dateForDb = _formatDateForDb(picked.date);
+    final timeForDb = _formatTimeForDb(picked.time);
+
+    setState(() => _updating.add(item.meetingId));
+    try {
+      await _supabase
+          .from('adoption_meeting')
+          .update({
+            'date': dateForDb,
+            'time': timeForDb,
+            'status': 'Reschedule Requested',
+          })
+          .eq('meeting_id', item.meetingId);
+
+      if (!mounted) return;
+      setState(() {
+        _items = _items
+            .map(
+              (m) => m.meetingId == item.meetingId
+                  ? m.copyWith(
+                      status: 'Reschedule Requested',
+                      date: dateForDb,
+                      time: timeForDb,
+                    )
+                  : m,
+            )
+            .toList();
+        _updating.remove(item.meetingId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reschedule requested.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updating.remove(item.meetingId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not request reschedule: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _editMeeting(MeetingItem item) async {
+    final picked = await _pickMeetingDateTime(item);
+    if (picked == null) return;
+
+    final dateForDb = _formatDateForDb(picked.date);
+    final timeForDb = _formatTimeForDb(picked.time);
+
+    setState(() => _updating.add(item.meetingId));
+    try {
+      await _supabase
+          .from('adoption_meeting')
+          .update({'date': dateForDb, 'time': timeForDb})
+          .eq('meeting_id', item.meetingId);
+
+      if (!mounted) return;
+      setState(() {
+        _items = _items
+            .map(
+              (m) => m.meetingId == item.meetingId
+                  ? m.copyWith(date: dateForDb, time: timeForDb)
+                  : m,
+            )
+            .toList();
+        _updating.remove(item.meetingId);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Meeting request updated.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _updating.remove(item.meetingId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not update meeting: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<_MeetingDateTime?> _pickMeetingDateTime(MeetingItem item) async {
+    final initialDate = _parseDate(item.date) ?? DateTime.now();
+    final initialTime = _parseTime(item.time) ?? TimeOfDay.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: DateTime.now(),
+      lastDate: DateTime(DateTime.now().year + 2),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: _primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: _primary,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (pickedDate == null) return null;
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: _primary,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: _primary,
+            ),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+    );
+    if (pickedTime == null) return null;
+    return _MeetingDateTime(date: pickedDate, time: pickedTime);
+  }
 }
 
 class MeetingItem {
@@ -268,6 +427,8 @@ class MeetingItem {
   final String time;
   final String? animalName;
   final String? animalImage;
+  final String? meetingType;
+  final String? contactPhone;
   final String? rescuerId;
   final String? shelterId;
   final String? adopterId;
@@ -279,6 +440,8 @@ class MeetingItem {
     required this.time,
     this.animalName,
     this.animalImage,
+    this.meetingType,
+    this.contactPhone,
     this.rescuerId,
     this.shelterId,
     this.adopterId,
@@ -286,28 +449,32 @@ class MeetingItem {
 
   factory MeetingItem.fromMap(Map<String, dynamic> map) {
     final animal = map['animal'] as Map?;
-    final imageUrls = _parseImageUrls(animal?['link_picture'] as String?);
+    final imageUrls = _parseImageUrls(animal?['link_picture']);
     return MeetingItem(
-      meetingId: map['meeting_id'] as int,
+      meetingId: _parseMeetingId(map['meeting_id']),
       status: (map['status'] as String?) ?? 'Pending',
       date: (map['date'] as String?) ?? '',
       time: (map['time'] as String?) ?? '',
       animalName: animal?['name'] as String?,
       animalImage: imageUrls.isNotEmpty ? imageUrls.first : null,
+      meetingType: (map['meeting_type'] as String?)?.trim(),
+      contactPhone: (map['contact_phone'] as String?)?.trim(),
       rescuerId: map['rescuer_id'] as String?,
       shelterId: map['shelter_id'] as String?,
       adopterId: map['adopter_id'] as String?,
     );
   }
 
-  MeetingItem copyWith({String? status}) {
+  MeetingItem copyWith({String? status, String? date, String? time}) {
     return MeetingItem(
       meetingId: meetingId,
       status: status ?? this.status,
-      date: date,
-      time: time,
+      date: date ?? this.date,
+      time: time ?? this.time,
       animalName: animalName,
       animalImage: animalImage,
+      meetingType: meetingType,
+      contactPhone: contactPhone,
       rescuerId: rescuerId,
       shelterId: shelterId,
       adopterId: adopterId,
@@ -346,32 +513,37 @@ class _MeetingCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isAdopter = role == 'adopter';
     final bool isModerator = role == 'rescuer' || role == 'shelter';
-    final statusLower = item.status.toLowerCase();
+    final statusLower = item.status.toLowerCase().trim();
 
     Widget actionRow() {
       if (isAdopter) {
-        if (statusLower == 'pending') {
-          return _AdopterActions(
-            onEdit: onEdit,
-            onCancel: onCancel,
-            onChat: onChat,
-          );
-        } else if (statusLower == 'accepted' || statusLower == 'approved') {
-          return _AdopterAcceptedActions(
-            onViewDetails: onViewDetails,
-            onChat: onChat,
-          );
-        } else if (statusLower == 'rejected') {
-          return _AdopterRejectedActions(onReschedule: onReschedule);
-        } else if (statusLower == 'reschedule requested') {
-          return _AdopterRescheduleActions(onReschedule: onReschedule);
+        switch (statusLower) {
+          case 'pending':
+            return _AdopterActions(
+              onEdit: onEdit,
+              onCancel: onCancel,
+              onChat: onChat,
+            );
+          case 'accepted':
+          case 'approved':
+          case 'confirmed':
+            return _AdopterAcceptedActions(
+              onViewDetails: onViewDetails,
+              onChat: onChat,
+            );
+          case 'rejected':
+            return _AdopterRejectedActions(onReschedule: onReschedule);
+          case 'reschedule requested':
+            return _AdopterRescheduleActions(onReschedule: onReschedule);
+          case 'cancelled':
+          case 'completed':
+            return _ChatOnlyActions(onChat: onChat);
+          default:
+            return _ChatOnlyActions(onChat: onChat);
         }
-        return _AdopterAcceptedActions(
-          onViewDetails: onViewDetails,
-          onChat: onChat,
-        );
       }
-      if (isModerator && statusLower == 'pending') {
+      if (isModerator &&
+          (statusLower == 'pending' || statusLower == 'reschedule requested')) {
         return _ModeratorActions(
           busy: busy,
           onAccept: onAccept,
@@ -395,6 +567,11 @@ class _MeetingCard extends StatelessWidget {
       }
       return 'Adopter: ${(item.adopterId ?? 'Unknown').toString()}';
     }
+
+    final dateLabel = item.date.isNotEmpty ? item.date : 'TBD';
+    final timeLabel = _formatTimeForDisplay(item.time);
+    final meetingType = (item.meetingType ?? '').trim();
+    final contactPhone = (item.contactPhone ?? '').trim();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -445,20 +622,28 @@ class _MeetingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${item.date} • ${item.time} • On-site',
+                        'Date: $dateLabel • Time: $timeLabel',
                         style: const TextStyle(
                           color: _muted,
                           fontSize: 13,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Timezone: Local | Status updated',
-                        style: const TextStyle(
-                          color: _muted,
-                          fontSize: 12,
+                      if (meetingType.isNotEmpty || contactPhone.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            [
+                              if (meetingType.isNotEmpty)
+                                'Type: $meetingType',
+                              if (contactPhone.isNotEmpty)
+                                'Contact: $contactPhone',
+                            ].join(' • '),
+                            style: const TextStyle(
+                              color: _muted,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -487,30 +672,7 @@ class _MeetingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Divider(color: _stroke, height: 14),
-                Row(
-                  children: const [
-                    Icon(Icons.timeline, size: 16, color: _muted),
-                    SizedBox(width: 6),
-                    Text(
-                      'Requested → Pending',
-                      style: TextStyle(color: _muted, fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.sticky_note_2_outlined, size: 16, color: _muted),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Shelter response: (none yet)',
-                        style: const TextStyle(color: _muted, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 actionRow(),
               ],
             ),
@@ -736,23 +898,102 @@ class _AdopterRescheduleActions extends StatelessWidget {
   }
 }
 
-List<String> _parseImageUrls(String? raw) {
-  if (raw == null) return [];
-  final trimmed = raw.trim();
-  if (trimmed.isEmpty) return [];
+class _ChatOnlyActions extends StatelessWidget {
+  const _ChatOnlyActions({this.onChat});
+  final VoidCallback? onChat;
 
-  if (trimmed.startsWith('[')) {
-    try {
-      final decoded = jsonDecode(trimmed);
-      if (decoded is List) {
-        return decoded
-            .whereType<String>()
-            .map((e) => e.trim())
-            .where((e) => e.isNotEmpty)
-            .toList();
-      }
-    } catch (_) {}
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (onChat != null)
+          TextButton.icon(
+            onPressed: onChat,
+            icon: const Icon(Icons.chat_bubble_outline),
+            label: const Text('Message'),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
+            ),
+          ),
+      ],
+    );
   }
+}
 
-  return [trimmed];
+List<String> _parseImageUrls(Object? raw) {
+  if (raw == null) return [];
+  if (raw is List) {
+    return raw
+        .whereType<String>()
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  if (raw is String) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return [];
+    if (trimmed.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is List) {
+          return decoded
+              .whereType<String>()
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {}
+    }
+    return [trimmed];
+  }
+  return [];
+}
+
+DateTime? _parseDate(String value) {
+  if (value.trim().isEmpty) return null;
+  return DateTime.tryParse(value);
+}
+
+TimeOfDay? _parseTime(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+  final parts = trimmed.split(':');
+  if (parts.length < 2) return null;
+  final hour = int.tryParse(parts[0]);
+  final minute = int.tryParse(parts[1]);
+  if (hour == null || minute == null) return null;
+  return TimeOfDay(hour: hour, minute: minute);
+}
+
+int _parseMeetingId(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value) ?? -1;
+  return -1;
+}
+
+String _formatDateForDb(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+String _formatTimeForDb(TimeOfDay t) =>
+    '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}:00';
+
+String _formatTimeForDisplay(String value) {
+  if (value.trim().isEmpty) return 'TBD';
+  final parts = value.split(':');
+  if (parts.length >= 2) {
+    return '${parts[0].padLeft(2, '0')}:${parts[1].padLeft(2, '0')}';
+  }
+  return value;
+}
+
+class _MeetingDateTime {
+  final DateTime date;
+  final TimeOfDay time;
+
+  const _MeetingDateTime({required this.date, required this.time});
 }

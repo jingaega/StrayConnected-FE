@@ -498,6 +498,41 @@ class _DropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> safeOptions =
+        value != null && options.contains(value)
+            ? options
+            : [
+              if (value != null) value!,
+              ...options,
+            ];
+    if (safeOptions.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _muted,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _stroke),
+              color: Colors.white,
+            ),
+            child: const Text(
+              'No options',
+              style: TextStyle(color: _muted),
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -523,7 +558,7 @@ class _DropdownField extends StatelessWidget {
             underline: const SizedBox.shrink(),
             hint: const Text('Yes/No', style: TextStyle(color: _muted)),
             items:
-                options
+                safeOptions
                     .map(
                       (opt) =>
                           DropdownMenuItem<String>(value: opt, child: Text(opt)),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class MeetingConfirmationPage extends StatelessWidget {
+class MeetingConfirmationPage extends StatefulWidget {
   const MeetingConfirmationPage({
     super.key,
     required this.onEdit,
@@ -8,7 +8,22 @@ class MeetingConfirmationPage extends StatelessWidget {
   });
 
   final VoidCallback onEdit;
-  final VoidCallback onConfirm;
+  final Future<void> Function(BuildContext context) onConfirm;
+
+  @override
+  State<MeetingConfirmationPage> createState() =>
+      _MeetingConfirmationPageState();
+}
+
+class _MeetingConfirmationPageState extends State<MeetingConfirmationPage> {
+  bool _submitting = false;
+
+  Future<void> _handleConfirm() async {
+    setState(() => _submitting = true);
+    await widget.onConfirm(context);
+    if (!mounted) return;
+    setState(() => _submitting = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -79,7 +94,7 @@ class MeetingConfirmationPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          onPressed: onEdit,
+                          onPressed: _submitting ? null : widget.onEdit,
                           child: const Text(
                             'EDIT',
                             style: TextStyle(
@@ -104,17 +119,26 @@ class MeetingConfirmationPage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          onPressed: onConfirm,
-                          child: const Text(
-                            'CONFIRM',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w400,
-                              height: 1.2,
-                              letterSpacing: -0.01,
-                            ),
-                          ),
+                          onPressed: _submitting ? null : _handleConfirm,
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'CONFIRM',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.2,
+                                    letterSpacing: -0.01,
+                                  ),
+                                ),
                         ),
                       ),
                     ),

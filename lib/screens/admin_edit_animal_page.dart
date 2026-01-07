@@ -712,6 +712,35 @@ class _DropdownField<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<T> safeOptions =
+        options.contains(value) ? options : [value, ...options];
+    if (safeOptions.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _stroke),
+              color: Colors.white,
+            ),
+            child: const Text(
+              'No options',
+              style: TextStyle(color: _muted),
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -735,7 +764,7 @@ class _DropdownField<T> extends StatelessWidget {
             isExpanded: true,
             underline: const SizedBox.shrink(),
             onChanged: onChanged,
-            items: options
+            items: safeOptions
                 .map(
                   (opt) => DropdownMenuItem<T>(
                     value: opt,

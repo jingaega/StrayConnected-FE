@@ -237,7 +237,10 @@ import 'package:strayconnected/data/auth_repository.dart';
                                         const SizedBox(width: 24),
                                         GestureDetector(
                                           onTap: () {
-                                            // TODO: implement forgot password
+                                            Navigator.pushNamed(
+                                              context,
+                                              '/forgotPassword',
+                                            );
                                           },
                                           child: const Text(
                                             'FORGOT PASSWORD?',

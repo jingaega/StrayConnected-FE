@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:strayconnected/screens/meeting_confirmation_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
@@ -38,6 +39,18 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
   final SupabaseClient _supabase = Supabase.instance.client;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+  static final RegExp _indoPhoneFull = RegExp(
+    r'^(?:\+62|0)8[1-9][0-9]{7,10}$',
+  );
+  static const int _maxPhoneBodyLength = 12;
+  late final TextInputFormatter _indonesianPhoneFormatter =
+      TextInputFormatter.withFunction((oldValue, newValue) {
+        final text = newValue.text;
+        if (_isValidIndonesianPhonePartial(text)) {
+          return newValue;
+        }
+        return oldValue;
+      });
 
   @override
   void dispose() {
@@ -62,6 +75,18 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please provide a contact number.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+    final contact = _contactCtrl.text.trim();
+    if (!_isValidIndonesianPhone(contact)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enter a valid Indonesian phone number (e.g. 08xx or +628xx).',
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -105,6 +130,8 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
       'date': _formatDateForDb(_selectedDate!),
       'time': _formatTimeForDb(_selectedTime!),
       'status': 'Pending',
+      'meeting_type': _meetingType,
+      'contact_phone': contact,
       if (widget.rescuerId != null && widget.rescuerId!.isNotEmpty)
         'rescuer_id': widget.rescuerId,
       if (widget.shelterId != null && widget.shelterId!.isNotEmpty)
@@ -112,30 +139,36 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
     };
 
     setState(() => _isSubmitting = true);
-    try {
-      final created =
-          await _supabase
-              .from('adoption_meeting')
-              .insert(payload)
-              .select('meeting_id')
-              .single();
-      final meetingId = created['meeting_id'] as int;
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder:
-              (_) => BackgroundWrapper(
-                child: MeetingConfirmationPage(
-                  onEdit: () => _handleEditRequest(meetingId),
-                  onConfirm: _handleConfirmRequest,
-                ),
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (_) => BackgroundWrapper(
+              child: MeetingConfirmationPage(
+                onEdit: _handleEditRequest,
+                onConfirm: (ctx) => _handleConfirmRequest(ctx, payload),
               ),
-        ),
-      );
+            ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+  }
+
+  void _handleEditRequest() {
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _handleConfirmRequest(
+    BuildContext context,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      await _supabase.from('adoption_meeting').insert(payload);
+      if (!context.mounted) return;
+      Navigator.pushReplacementNamed(context, '/meetings');
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSubmitting = false);
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not create meeting: $e'),
@@ -143,23 +176,6 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
         ),
       );
     }
-  }
-
-  Future<void> _handleEditRequest(int meetingId) async {
-    try {
-      await _supabase
-          .from('adoption_meeting')
-          .delete()
-          .eq('meeting_id', meetingId);
-    } catch (_) {
-      // Keep the form available even if delete fails.
-    }
-    if (!mounted) return;
-    Navigator.of(context).pop();
-  }
-
-  void _handleConfirmRequest() {
-    Navigator.pushReplacementNamed(context, '/meetings');
   }
 
   Future<void> _pickDate() async {
@@ -265,6 +281,32 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
       hour += 12;
     }
     return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  static bool _isValidIndonesianPhone(String value) {
+    return _indoPhoneFull.hasMatch(value);
+  }
+
+  static bool _isValidIndonesianPhonePartial(String value) {
+    if (value.isEmpty) return true;
+    if (value == '+' || value == '+6' || value == '+62') return true;
+    if (value.startsWith('+')) {
+      if (!value.startsWith('+62')) return false;
+      final body = value.substring(3);
+      return _isValidIndonesianPhoneBodyPartial(body);
+    }
+    if (value.startsWith('0')) {
+      final body = value.substring(1);
+      return _isValidIndonesianPhoneBodyPartial(body);
+    }
+    return false;
+  }
+
+  static bool _isValidIndonesianPhoneBodyPartial(String body) {
+    if (body.isEmpty) return true;
+    if (!RegExp(r'^\d+$').hasMatch(body)) return false;
+    if (body.length > _maxPhoneBodyLength) return false;
+    return body.startsWith('8');
   }
 
   @override
@@ -398,6 +440,7 @@ class _ArrangeAdoptionPageState extends State<ArrangeAdoptionPage> {
                           controller: _contactCtrl,
                           hint: 'Add phone',
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [_indonesianPhoneFormatter],
                         ),
                       ),
                     ],
@@ -523,6 +566,7 @@ class _Field extends StatelessWidget {
   final bool readOnly;
   final TextInputType? keyboardType;
   final VoidCallback? onTap;
+  final List<TextInputFormatter>? inputFormatters;
 
   const _Field({
     required this.label,
@@ -531,6 +575,7 @@ class _Field extends StatelessWidget {
     this.readOnly = false,
     this.keyboardType,
     this.onTap,
+    this.inputFormatters,
   });
 
   @override
@@ -554,6 +599,7 @@ class _Field extends StatelessWidget {
           readOnly: readOnly,
           keyboardType: keyboardType,
           onTap: onTap,
+          inputFormatters: inputFormatters,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,

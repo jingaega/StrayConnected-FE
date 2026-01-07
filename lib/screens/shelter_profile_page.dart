@@ -372,7 +372,6 @@ class _ShelterProfilePageState extends State<ShelterProfilePage> {
                 onShelterProfile: () =>
                     Navigator.pushReplacementNamed(context, '/shelterProfile'),
                 activeTab: BottomNavTab.profile,
-                showCreate: _canEdit,
               ),
             ),
           ],

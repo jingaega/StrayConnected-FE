@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:strayconnected/screens/login_page.dart';
+import 'package:strayconnected/screens/forgot_password_page.dart';
+import 'package:strayconnected/screens/reset_password_page.dart';
 import 'package:strayconnected/screens/register_role_page.dart';
 import 'package:strayconnected/screens/register_page.dart';
 import 'package:strayconnected/screens/user_home_page.dart';
@@ -31,6 +33,8 @@ class StrayConnectedApp extends StatelessWidget {
       initialRoute: '/login',
       routes: {
         '/login': (_) => const BackgroundWrapper(child: LoginPage()),
+        '/forgotPassword': (_) => const ForgotPasswordPage(),
+        '/resetPassword': (_) => const ResetPasswordPage(),
         '/register': (context) {
           final args = ModalRoute.of(context)?.settings.arguments;
           String? presetRole;

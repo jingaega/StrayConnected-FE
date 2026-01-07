@@ -27,10 +27,128 @@ class _EditAnimalPageState extends State<EditAnimalPage> {
   final TextEditingController _descriptionCtrl = TextEditingController();
 
   final List<String> _speciesOptions = ['Cat', 'Dog', 'Other'];
-  final List<String> _breedOptions = ['Calico', 'Mixed', 'Husky', 'Unknown'];
+  final List<String> _extraBreeds = [];
+  static const List<String> _catBreeds = [
+    'Domestic Shorthair',
+    'Domestic Longhair',
+    'Domestic Mediumhair',
+    'American Shorthair',
+    'British Shorthair',
+    'Maine Coon',
+    'Siamese',
+    'Persian',
+    'Ragdoll',
+    'Bengal',
+    'Sphynx',
+    'Scottish Fold',
+    'Abyssinian',
+    'Russian Blue',
+    'Norwegian Forest',
+    'Birman',
+    'Oriental Shorthair',
+    'Savannah',
+    'Himalayan',
+    'Manx',
+    'Turkish Angora',
+    'British Longhair',
+    'American Curl',
+    'Devon Rex',
+    'Cornish Rex',
+    'Bombay',
+    'Burmese',
+    'Chartreux',
+    'Tonkinese',
+    'Balinese',
+    'Ocicat',
+    'Exotic Shorthair',
+    'Ragamuffin',
+    'Selkirk Rex',
+    'Snowshoe',
+    'Somali',
+    'Turkish Van',
+    'Egyptian Mau',
+    'Singapura',
+    'American Bobtail',
+    'American Wirehair',
+    'LaPerm',
+    'Korat',
+    'Pixiebob',
+    'Japanese Bobtail',
+    'Munchkin',
+    'Lykoi',
+    'Oriental Longhair',
+    'Chausie',
+    'Nebelung',
+    'Havana Brown',
+    'Bicolor',
+    'Tabby',
+    'Tortoiseshell',
+    'Calico',
+    'Mixed',
+    'Unknown',
+  ];
+  static const List<String> _dogBreeds = [
+    'Labrador Retriever',
+    'German Shepherd',
+    'Golden Retriever',
+    'French Bulldog',
+    'Bulldog',
+    'Poodle',
+    'Beagle',
+    'Rottweiler',
+    'German Shorthaired Pointer',
+    'Dachshund',
+    'Pembroke Welsh Corgi',
+    'Australian Shepherd',
+    'Yorkshire Terrier',
+    'Boxer',
+    'Cavalier King Charles Spaniel',
+    'Great Dane',
+    'Siberian Husky',
+    'Doberman Pinscher',
+    'Shih Tzu',
+    'Boston Terrier',
+    'Pug',
+    'Chihuahua',
+    'Border Collie',
+    'Basset Hound',
+    'Maltese',
+    'Cocker Spaniel',
+    'Weimaraner',
+    'Shetland Sheepdog',
+    'Havanese',
+    'Pomeranian',
+    'Bernese Mountain Dog',
+    'Mastiff',
+    'Akita',
+    'Bichon Frise',
+    'Bull Terrier',
+    'Chow Chow',
+    'Collie',
+    'Dalmatian',
+    'Jack Russell Terrier',
+    'Miniature Schnauzer',
+    'Newfoundland',
+    'Saint Bernard',
+    'Shar Pei',
+    'Vizsla',
+    'Whippet',
+    'Great Pyrenees',
+    'Papillon',
+    'Bloodhound',
+    'Staffordshire Bull Terrier',
+    'American Pit Bull Terrier',
+    'Pit Bull',
+    'Mixed',
+    'Unknown',
+  ];
+  static const List<String> _genericBreeds = [
+    'Mixed',
+    'Unknown',
+  ];
 
   String _selectedSpecies = 'Cat';
-  String _selectedBreed = 'Mixed';
+  String _selectedBreed = _catBreeds.first;
   bool _loading = true;
   bool _saving = false;
   bool _canEdit = false;
@@ -95,8 +213,8 @@ class _EditAnimalPageState extends State<EditAnimalPage> {
 
     if (pet.breed != null && pet.breed!.trim().isNotEmpty) {
       final breed = pet.breed!.trim();
-      if (!_breedOptions.contains(breed)) {
-        _breedOptions.add(breed);
+      if (!_extraBreeds.contains(breed)) {
+        _extraBreeds.add(breed);
       }
       _selectedBreed = breed;
     }
@@ -113,6 +231,107 @@ class _EditAnimalPageState extends State<EditAnimalPage> {
     if (parsed == null) return 'Enter months';
     if (parsed < 0 || parsed > 240) return 'Max 240 months';
     return null;
+  }
+
+  List<String> _breedOptionsForSpecies(String species) {
+    final base =
+        species == 'Dog'
+            ? _dogBreeds
+            : (species == 'Cat' ? _catBreeds : _genericBreeds);
+    final options = <String>[...base];
+    for (final extra in _extraBreeds) {
+      if (!options.contains(extra)) {
+        options.insert(0, extra);
+      }
+    }
+    return options;
+  }
+
+  void _setSpecies(String species) {
+    setState(() {
+      _selectedSpecies = species;
+      final options = _breedOptionsForSpecies(species);
+      if (!options.contains(_selectedBreed)) {
+        _selectedBreed = options.first;
+      }
+    });
+  }
+
+  Future<void> _pickBreed() async {
+    final options = _breedOptionsForSpecies(_selectedSpecies);
+    final controller = TextEditingController();
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        final sheetHeight = MediaQuery.of(context).size.height * 0.75;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final query = controller.text.trim().toLowerCase();
+            final filtered =
+                query.isEmpty
+                    ? options
+                    : options
+                        .where(
+                          (breed) => breed.toLowerCase().contains(query),
+                        )
+                        .toList();
+            return SafeArea(
+              child: AnimatedPadding(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: SizedBox(
+                  height: sheetHeight,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: controller,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search),
+                            hintText: 'Search breed',
+                            border: OutlineInputBorder(),
+                          ),
+                          onChanged: (_) => setModalState(() {}),
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child:
+                              filtered.isEmpty
+                                  ? const Center(child: Text('No breeds found.'))
+                                  : ListView.separated(
+                                      itemCount: filtered.length,
+                                      separatorBuilder:
+                                          (_, __) => const Divider(height: 1),
+                                      itemBuilder: (context, index) {
+                                        final breed = filtered[index];
+                                        return ListTile(
+                                          title: Text(breed),
+                                          onTap: () =>
+                                              Navigator.pop(context, breed),
+                                        );
+                                      },
+                                    ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    controller.dispose();
+    if (selected == null) return;
+    setState(() => _selectedBreed = selected);
   }
 
   Future<void> _save() async {
@@ -230,16 +449,13 @@ class _EditAnimalPageState extends State<EditAnimalPage> {
                         label: 'Species',
                         value: _selectedSpecies,
                         options: _speciesOptions,
-                        onChanged:
-                            (value) => setState(() => _selectedSpecies = value),
+                        onChanged: _setSpecies,
                       ),
                       const SizedBox(height: 12),
-                      _DropdownField(
+                      _PickerField(
                         label: 'Breed',
                         value: _selectedBreed,
-                        options: _breedOptions,
-                        onChanged:
-                            (value) => setState(() => _selectedBreed = value),
+                        onTap: _pickBreed,
                       ),
                       const SizedBox(height: 12),
                       _Field(
@@ -384,6 +600,8 @@ class _DropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<String> safeOptions =
+        options.contains(value) ? options : [value, ...options];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -408,7 +626,7 @@ class _DropdownField extends StatelessWidget {
             isExpanded: true,
             underline: const SizedBox.shrink(),
             items:
-                options
+                safeOptions
                     .map(
                       (opt) => DropdownMenuItem<String>(
                         value: opt,
@@ -420,6 +638,58 @@ class _DropdownField extends StatelessWidget {
               if (value == null) return;
               onChanged(value);
             },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PickerField extends StatelessWidget {
+  const _PickerField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _muted,
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+        ),
+        const SizedBox(height: 6),
+        GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _stroke),
+              color: Colors.white,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: const TextStyle(color: _primary),
+                  ),
+                ),
+                const Icon(Icons.arrow_drop_down, color: _muted),
+              ],
+            ),
           ),
         ),
       ],

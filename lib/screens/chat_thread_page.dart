@@ -198,6 +198,7 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
           final msg =
               _ChatMessage.fromMap(Map<String, dynamic>.from(newRecord));
           if (!mounted) return;
+          if (_messages.any((m) => m.id == msg.id)) return;
           setState(() => _messages = [..._messages, msg]);
           _scrollToBottom();
         },
@@ -278,7 +279,7 @@ class _ChatThreadPageState extends State<ChatThreadPage> {
         final msg =
             _ChatMessage.fromMap(Map<String, dynamic>.from(inserted));
         if (mounted) {
-          setState(() => _messages = [..._messages, msg]);
+          setState(() => _replaceMessage(msg));
           _scrollToBottom();
         }
       }

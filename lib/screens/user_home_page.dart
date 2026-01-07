@@ -77,6 +77,20 @@ class _UserHomePageState extends State<UserHomePage> {
     });
 
     try {
+      final uid = _supabase.auth.currentUser?.id;
+      String? role = _role;
+      if (uid != null && (role == null || role == 'user')) {
+        try {
+          final data =
+              await _supabase
+                  .from('user')
+                  .select('role')
+                  .eq('id', uid)
+                  .maybeSingle();
+          role = data?['role'] as String?;
+        } catch (_) {}
+      }
+
       final data = await _supabase
           .from('animal')
           .select(
@@ -90,10 +104,46 @@ class _UserHomePageState extends State<UserHomePage> {
               .map((row) => Pet.fromMap(Map<String, dynamic>.from(row as Map)))
               .toList();
 
+      final Set<int> bookedAnimalIds = {};
+      try {
+        final meetingRows = await _supabase
+            .from('adoption_meeting')
+            .select('animal_id, status')
+            .inFilter('status', [
+              'Accepted',
+              'Approved',
+              'Confirmed',
+              'accepted',
+              'approved',
+              'confirmed',
+            ]);
+        for (final row in meetingRows as List) {
+          final map = row as Map;
+          final status = (map['status'] ?? '').toString().toLowerCase().trim();
+          if (status == 'accepted' ||
+              status == 'approved' ||
+              status == 'confirmed') {
+            final idRaw = map['animal_id'];
+            if (idRaw is int) {
+              bookedAnimalIds.add(idRaw);
+            } else if (idRaw is num) {
+              bookedAnimalIds.add(idRaw.toInt());
+            } else if (idRaw != null) {
+              final parsed = int.tryParse(idRaw.toString());
+              if (parsed != null) bookedAnimalIds.add(parsed);
+            }
+          }
+        }
+      } catch (_) {}
+
       setState(() {
         _allPets
           ..clear()
-          ..addAll(list);
+          ..addAll(
+            bookedAnimalIds.isEmpty
+                ? list
+                : list.where((pet) => !bookedAnimalIds.contains(pet.animalId)),
+          );
         _isLoading = false;
       });
     } catch (e) {
@@ -103,6 +153,7 @@ class _UserHomePageState extends State<UserHomePage> {
       });
     }
   }
+
 
   /// List of pets after applying current filter.
   List<Pet> get _filteredPets {
